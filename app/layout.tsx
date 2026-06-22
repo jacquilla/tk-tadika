@@ -21,7 +21,7 @@ export default function RootLayout({
         {/* LOGO DI ATAS APLIKASI */}
         <header className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4 pointer-events-none">
           <Image
-            src="/piasmart.svg"
+            src="/piasmart.png"
             alt="PIA Smart"
             width={80}
             height={80}
