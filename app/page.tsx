@@ -58,6 +58,12 @@ const IconBadge = ({
   to,
   size = "w-14 h-14",
   text = "text-3xl",
+}: {
+  children: React.ReactNode;
+  from: string;
+  to: string;
+  size?: string;
+  text?: string;
 }) => (
   <div
     className={`${size} rounded-2xl bg-gradient-to-br ${from} ${to} flex items-center justify-center shadow-lg ring-1 ring-white/20 backdrop-blur-sm`}
