@@ -19,16 +19,7 @@ export default function RootLayout({
     <html lang="id">
       <body className={inter.className}>
         {/* LOGO DI ATAS APLIKASI */}
-        <header className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4 pointer-events-none">
-          <Image
-            src="/piasmart.png"
-            alt="PIA Smart"
-            width={80}
-            height={80}
-            priority
-            className="drop-shadow-xl"
-          />
-        </header>
+        <header className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4 pointer-events-none"></header>
 
         {children}
       </body>

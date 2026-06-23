@@ -1,36 +1,63 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { targetHp, pesanCustom } = body; // Sekarang kurir menerima pesan utuh
+    const { targetHp, pesanCustom } = body;
 
-    // Token Fonnte kamu
-    const TOKEN_FONNTE = "5vzpjJG47YMsDvgNEcDG";
+    // 1. Validasi Data
+    if (!targetHp || !pesanCustom) {
+      return NextResponse.json(
+        { error: "Nomor HP dan Pesan wajib diisi" },
+        { status: 400 },
+      );
+    }
 
-    const formData = new FormData();
-    formData.append("target", String(targetHp));
-    formData.append("message", pesanCustom); // Memasukkan pesan rangkuman
+    // 2. Ambil Token Rahasia Fonnte
+    const FONNTE_TOKEN = process.env.FONNTE_TOKEN;
 
+    if (!FONNTE_TOKEN) {
+      console.error("Token Fonnte belum dipasang di .env");
+      return NextResponse.json(
+        { error: "Token Fonnte belum dikonfigurasi" },
+        { status: 500 },
+      );
+    }
+
+    // 3. Tembak API ke Server Fonnte
     const response = await fetch("https://api.fonnte.com/send", {
       method: "POST",
-      headers: { Authorization: TOKEN_FONNTE },
-      body: formData,
+      headers: {
+        Authorization: FONNTE_TOKEN,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        target: targetHp,
+        message: pesanCustom,
+        delay: "2", // Jeda 2 detik agar tidak dianggap spam oleh WA
+      }),
     });
 
-    const result = await response.json();
+    const data = await response.json();
 
-    if (result.status === true) {
-      return NextResponse.json({ success: true, detail: result });
+    // 4. Cek Hasilnya
+    if (data.status) {
+      return NextResponse.json({
+        success: true,
+        message: "WA Berhasil Terkirim!",
+        data,
+      });
     } else {
+      console.error("Fonnte Error:", data.reason);
       return NextResponse.json(
-        { success: false, pesan: result.reason || "Ditolak Fonnte" },
+        { success: false, error: data.reason },
         { status: 400 },
       );
     }
   } catch (error) {
+    console.error("Error Server API WA:", error);
     return NextResponse.json(
-      { success: false, pesan: "Server Error" },
+      { error: "Terjadi kesalahan internal server" },
       { status: 500 },
     );
   }

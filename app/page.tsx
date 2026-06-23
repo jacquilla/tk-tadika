@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 
 // INISIALISASI SUPABASE (Mengambil rahasia dari .env.local)
@@ -85,17 +86,29 @@ export default function AppTK() {
   };
 
   // Catatan: idAnak sekarang bertipe string karena UUID
-  const catatKegiatan = (idAnak: string, teksKegiatan: string) => {
+  const catatKegiatan = async (
+    idAnak: string,
+    teksKegiatan: string,
+    kategori = "Umum",
+  ) => {
     const waktu = new Date().toLocaleTimeString("id-ID", {
       hour: "2-digit",
       minute: "2-digit",
     });
+
+    // Ubah di layar
     setLogKegiatan((prev) => ({
       ...prev,
       [idAnak]: [...(prev[idAnak] || []), `[${waktu}] ${teksKegiatan}`],
     }));
-  };
 
+    // Simpan permanen ke Supabase
+    await supabase.from("log_aktivitas").insert({
+      murid_id: idAnak,
+      deskripsi: teksKegiatan,
+      kategori: kategori,
+    });
+  };
   const kirimWA = async (nomorHp: string, pesanRangkuman: string) => {
     try {
       await fetch("/api/wa", {
@@ -128,18 +141,26 @@ export default function AppTK() {
     alert("✅ Siaran berhasil terkirim!");
   };
 
-  const handleDatang = (anak: any) => {
+  const handleDatang = async (anak: any) => {
     getaranHalus();
     setShowConfetti(true);
     setTimeout(() => setShowConfetti(false), 900);
+
     setStatusAnak((prev) => ({ ...prev, [anak.id]: "hadir" }));
+
+    // Simpan permanen ke database Supabase
+    await supabase.from("kehadiran").insert({
+      murid_id: anak.id,
+      status_hadir: "hadir",
+      waktu_datang: new Date().toISOString(),
+    });
+
     catatKegiatan(anak.id, "Tiba di sekolah dengan ceria (Check-In)");
     kirimWA(
       anak.nomor_hp_ortu,
       `🔔 *Notifikasi Kehadiran*\nSyalom Bunda, ananda *${anak.nama}* baru saja tiba di sekolah dan disambut oleh Guru ${namaGuru}. Semoga harinya menyenangkan!`,
     );
   };
-
   const simpanKegiatanMassal = () => {
     getaranHalus();
     setShowConfetti(true);
@@ -153,17 +174,31 @@ export default function AppTK() {
     setJenisKegiatan("");
   };
 
-  const handlePulang = (anak: any) => {
+  const handlePulang = async (anak: any) => {
     getaranHalus();
     setShowConfetti(true);
     setTimeout(() => setShowConfetti(false), 900);
     const siapaJemput = penjemput[anak.id] || "Orang Tua";
     const detailJemput = ketPenjemput[anak.id] || "";
+
     setStatusAnak((prev) => ({ ...prev, [anak.id]: "pulang" }));
+
+    // Update ke database Supabase (Catat jam pulang & penjemput)
+    await supabase
+      .from("kehadiran")
+      .update({
+        status_hadir: "pulang",
+        waktu_pulang: new Date().toISOString(),
+        penjemput: siapaJemput,
+        keterangan_jemput: detailJemput,
+      })
+      .eq("murid_id", anak.id);
+
     let infoLog = `Pulang (Dijemput: ${siapaJemput}`;
     if (detailJemput) infoLog += ` - ${detailJemput}`;
     infoLog += `)`;
     catatKegiatan(anak.id, infoLog);
+
     const logHariIni = logKegiatan[anak.id] || [];
     const rangkumanText = logHariIni.join("\n- ");
     const pesanFinal = `📖 *Buku Penghubung Digital TK Tadika Mesra*\n\nSyalom Bunda/Ayah,\nHari ini ananda *${anak.nama}* telah mengikuti kegiatan di sekolah dengan penuh semangat! ✨\n\n📝 *Catatan Aktivitas Hari Ini:*\n- ${
@@ -171,9 +206,9 @@ export default function AppTK() {
     }\n\n🚗 *Informasi Kepulangan:*\nAnanda telah dijemput dengan aman oleh: *${siapaJemput}*\n${
       detailJemput ? `Keterangan Penjemput: ${detailJemput}` : ""
     }\n\nTerima kasih atas kepercayaannya Bunda/Ayah. Selamat beristirahat dan sampai jumpa besok! Kurré sumanga'. 🙏`;
+
     kirimWA(anak.nomor_hp_ortu, pesanFinal);
   };
-
   return (
     <div
       className="fixed inset-0 w-full min-h-[100dvh] flex items-center justify-center font-sans bg-slate-900"
@@ -218,6 +253,16 @@ export default function AppTK() {
         {tampilan === "login" && (
           <div className="flex-1 flex items-center justify-center p-6 bg-gradient-to-b from-indigo-50/90 to-white/90 backdrop-blur-md">
             <div className="bg-white/90 backdrop-blur-xl w-full p-8 rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] text-center border border-white animate-pop-in">
+              <div className="flex justify-center mb-4">
+                <Image
+                  src="/piasmart.png"
+                  alt="PiaSmart"
+                  width={90}
+                  height={15}
+                  priority
+                  className="opacity-90"
+                />
+              </div>
               <div className="relative inline-block mb-6">
                 <img
                   src="logo-tk.jpeg"
@@ -232,6 +277,7 @@ export default function AppTK() {
                   ✨
                 </div>
               </div>
+
               <h1 className="text-3xl font-black text-indigo-950 mb-1 tracking-tight">
                 TK Tadika Mesra
               </h1>
@@ -272,6 +318,16 @@ export default function AppTK() {
               >
                 Masuk Aplikasi
               </button>
+              <div className="flex justify-center mb-4">
+                <Image
+                  src="/logo-digi.png"
+                  alt="digi"
+                  width={60}
+                  height={60}
+                  priority
+                  className="opacity-90"
+                />
+              </div>
             </div>
           </div>
         )}
