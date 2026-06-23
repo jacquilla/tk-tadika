@@ -584,38 +584,42 @@ export default function AppTK() {
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[3px]"></div>
       <div className="relative w-full max-w-md h-[100dvh] md:h-[90vh] bg-[#F8FAFC] shadow-[0_20px_50px_rgba(0,0,0,0.2)] md:rounded-[2.5rem] flex flex-col overflow-hidden border-0 md:border border-white/60">
         {tampilan === "login" && (
-          <div className="flex-1 flex flex-col p-6 bg-white fade-in">
-            <div className="w-full pt-1 pb-1 flex justify-center">
+          <div className="flex-1 flex flex-col bg-white fade-in overflow-y-auto">
+            {/* Bagian Atas: Logo PiaSmart */}
+            <div className="w-full pt-6 pb-2 flex justify-center">
               <Image
                 src="/piasmart.png"
                 alt="PiaSmart"
-                width={120}
-                height={45}
+                width={140}
+                height={36}
                 priority
                 className="opacity-90 object-contain"
               />
             </div>
-            <div className="flex-1 flex flex-col items-center justify-center w-full">
+
+            {/* Bagian Tengah: Judul, Input, Tombol (flex-1 agar memenuhi ruang) */}
+            <div className="flex-1 flex flex-col items-center justify-center w-full px-6 py-2">
               <div className="w-full text-center">
-                <div className="relative inline-block mb-8">
+                <div className="relative inline-block mb-6">
                   <img
                     src="logo-tk.jpeg"
                     alt="Logo TK"
-                    className="w-28 h-28 mx-auto shadow-sm rounded-3xl border-2 border-slate-50 object-cover"
+                    className="w-24 h-24 mx-auto shadow-sm rounded-3xl border-2 border-slate-50 object-cover"
                     onError={(e) => {
                       e.currentTarget.src =
                         "https://ui-avatars.com/api/?name=TK&background=EEF2FF&color=4F46E5&rounded=false&size=128";
                     }}
                   />
                 </div>
-                <h1 className="text-2xl font-extrabold text-slate-800 mb-1 tracking-tight">
+                <h1 className="text-2xl font-extrabold text-slate-800 mb-0.5 tracking-tight">
                   TK Tadika Mesra
                 </h1>
-                <p className="text-slate-400 font-bold mb-10 text-[10px] tracking-widest uppercase">
+                <p className="text-slate-400 font-bold mb-6 text-[10px] tracking-widest uppercase">
                   Portal Guru Digital
                 </p>
+
                 {isLoading ? (
-                  <div className="flex flex-col items-center justify-center text-indigo-500 space-y-3 mb-8">
+                  <div className="flex flex-col items-center justify-center text-indigo-500 space-y-3 mb-6">
                     <Loading
                       theme="outline"
                       size={32}
@@ -628,7 +632,7 @@ export default function AppTK() {
                     </span>
                   </div>
                 ) : (
-                  <div className="relative mb-8 w-full max-w-[300px] mx-auto">
+                  <div className="relative mb-6 w-full max-w-[300px] mx-auto">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
                       <User
                         theme="outline"
@@ -646,6 +650,7 @@ export default function AppTK() {
                     />
                   </div>
                 )}
+
                 <div className="w-full max-w-[300px] mx-auto">
                   <button
                     disabled={isLoading}
@@ -670,21 +675,22 @@ export default function AppTK() {
                 </div>
               </div>
             </div>
-            <div className="w-full pb-6 flex flex-col items-center justify-center opacity-80">
+
+            {/* Bagian Bawah: Powered By + Logo Digi (mt-auto agar selalu di bawah) */}
+            <div className="w-full mt-auto pb-6 flex flex-col items-center justify-center opacity-80">
               <span className="text-[10px] text-slate-400 font-bold tracking-widest mb-2 uppercase">
                 Powered By
               </span>
               <Image
                 src="/logo-digi.png"
                 alt="Digi.ID"
-                width={50}
-                height={50}
+                width={80}
+                height={80}
                 className="object-contain grayscale hover:grayscale-0 transition-all duration-300"
               />
             </div>
           </div>
         )}
-
         {tampilan === "kelas" && (
           <div className="flex-1 flex flex-col p-6 bg-slate-50 overflow-y-auto hide-scrollbar fade-in">
             <div className="flex justify-between items-center mb-10 mt-4">
