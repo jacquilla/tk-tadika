@@ -111,8 +111,6 @@ export default function AppTK() {
   const [dailyTidurSelesai, setDailyTidurSelesai] = useState("");
   const [dailyMood, setDailyMood] = useState("");
 
-  const [fotoAktivitas, setFotoAktivitas] = useState<File | null>(null);
-
   const [penjemput, setPenjemput] = useState<Record<string, string>>({});
   const [penjemputCustom, setPenjemputCustom] = useState<
     Record<string, string>
@@ -132,6 +130,7 @@ export default function AppTK() {
 
   const [cariMurid, setCariMurid] = useState("");
 
+  // State untuk laporan harian & mingguan
   const [selectedStudentReport, setSelectedStudentReport] = useState<any>(null);
   const [weeklyOffset, setWeeklyOffset] = useState(0);
   const [weeklyData, setWeeklyData] = useState<any>(null);
@@ -387,6 +386,7 @@ export default function AppTK() {
     alert(`Pesan berhasil terkirim ke orang tua ${chatPersonalAktif.nama}!`);
   };
 
+  // ✅ PERBAIKAN PADA FUNGSI HADIR/DATANG (SUDAH BISA KIRIM WA)
   const handleDatang = async (anak: any) => {
     getaranHalus();
     const today = getTanggalLokal();
@@ -427,6 +427,7 @@ export default function AppTK() {
         "Kehadiran",
       );
 
+      // KIRIM WA SETELAH UPDATE DATABASE BERHASIL
       const pesanDatang = `📖 *Informasi TK Tadika Mesra*\n\nSyalom Bunda/Ayah,\nAnanda *${anak.nama}* telah tiba di sekolah dengan selamat pada pukul *${timeDatang}*.\n\nSemoga hari ini ananda belajar dan bermain dengan penuh sukacita. Kurré sumanga' dan Tuhan memberkati. 🙏✨`;
       await kirimWA(anak.nomor_hp_ortu, pesanDatang);
     } catch (err) {
@@ -442,47 +443,14 @@ export default function AppTK() {
       !dailyMakan &&
       !dailyMood &&
       !dailyTidurMulai &&
-      !dailyTidurSelesai &&
-      !fotoAktivitas // <- Tambahan agar guru bisa kirim foto saja tanpa teks
+      !dailyTidurSelesai
     ) {
-      return alert("Isi catatan kegiatan, foto, atau daily sheet!");
+      return alert("Isi catatan kegiatan atau daily sheet!");
     }
 
     setIsSaving(true);
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
-    // ==========================================
-    // PROSES 1: UPLOAD FOTO KE GOOGLE DRIVE
-    // ==========================================
-    let uploadedImageUrl = "";
-    if (fotoAktivitas) {
-      try {
-        const formData = new FormData();
-        formData.append("file", fotoAktivitas);
-
-        // Memanggil file route.ts kita
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const data = await res.json();
-        if (data.imageUrl) {
-          uploadedImageUrl = data.imageUrl; // Berhasil dapat link Drive
-        } else {
-          alert("Gagal mengupload foto ke Drive: " + data.error);
-          setIsSaving(false);
-          return; // Berhenti jika foto gagal diupload
-        }
-      } catch (error) {
-        alert("Terjadi kesalahan jaringan saat mengupload foto.");
-        setIsSaving(false);
-        return;
-      }
-    }
-
-    // ==========================================
-    // PROSES 2: SIMPAN DATA KE SUPABASE
-    // ==========================================
     const metadataSheet = {
       makan: dailyMakan || null,
       tidur:
@@ -490,7 +458,6 @@ export default function AppTK() {
           ? `${dailyTidurMulai} - ${dailyTidurSelesai}`
           : null,
       mood: dailyMood || null,
-      foto_url: uploadedImageUrl || null, // <- Link Drive masuk ke database
     };
 
     for (const id of pilihanAnak) {
@@ -512,18 +479,16 @@ export default function AppTK() {
 
     localStorage.removeItem(`draft_jurnal_${kelasAktif}`);
 
-    // Bersihkan formulir
     setPilihanAnak([]);
     setJenisKegiatan("");
     setDailyMakan("");
     setDailyTidurMulai("");
     setDailyTidurSelesai("");
     setDailyMood("");
-    setFotoAktivitas(null); // Bersihkan foto dari wadah
     setIsSaving(false);
-
-    alert("Jurnal & Foto berhasil disimpan!");
   };
+
+  // ✅ PERBAIKAN handlePulang: mendukung opsi "Lainnya"
   const handlePulang = async (anak: any) => {
     getaranHalus();
     const dropdownValue = penjemput[anak.id] || "Orang Tua";
@@ -552,6 +517,7 @@ export default function AppTK() {
         "Kehadiran",
       );
 
+      // Ambil data Daily Sheet dari state (yang sudah termuat dari database)
       const dailyMeta = statusDailySheetHarian[anak.id];
       let ringkasanDaily = "";
       if (dailyMeta && (dailyMeta.makan || dailyMeta.tidur || dailyMeta.mood)) {
@@ -567,7 +533,6 @@ export default function AppTK() {
         .filter((l) => l.kategori !== "Kehadiran")
         .map((l) => `- [${l.waktu}] ${l.teks}`)
         .join("\n");
-
       const pesanFinal = `📖 *Buku Penghubung Digital TK Tadika Mesra*\n\nSyalom Bunda/Ayah,\nHari ini ananda *${anak.nama}* telah mengikuti kegiatan di sekolah dengan baik! ✨\n\n📝 *Aktivitas Hari Ini:*\n${rangkumanText || "- Berkegiatan rutin di kelas"}${ringkasanDaily}\n\n🚗 *Informasi Kepulangan:*\nAnanda telah dijemput oleh: *${siapaJemput}*\n${detailJemput ? `Keterangan: ${detailJemput}` : ""}\n\nTerima kasih atas kepercayaannya Bunda/Ayah. Kurré sumanga'. 🙏`;
       await kirimWA(anak.nomor_hp_ortu, pesanFinal);
     } catch (err) {
@@ -607,6 +572,7 @@ export default function AppTK() {
     }
   };
 
+  // Fungsi untuk mengambil laporan mingguan seorang anak
   const fetchWeeklyReportForChild = async (anak: any) => {
     setIsLoadingWeekly(true);
     setSelectedStudentReport(anak);
@@ -629,6 +595,7 @@ export default function AppTK() {
         .lte("created_at", `${end}T23:59:59`);
       if (logError) throw logError;
 
+      // Proses data menjadi per hari
       const dailyMap: Record<string, any> = {};
       for (
         let d = new Date(start);
@@ -636,7 +603,10 @@ export default function AppTK() {
         d.setDate(d.getDate() + 1)
       ) {
         const dateStr = d.toISOString().split("T")[0];
-        dailyMap[dateStr] = { hadir: null, kegiatan: [] };
+        dailyMap[dateStr] = {
+          hadir: null,
+          kegiatan: [],
+        };
       }
       hadirData?.forEach((h: any) => {
         if (dailyMap[h.tanggal]) {
@@ -700,7 +670,6 @@ export default function AppTK() {
     );
   };
 
-  // ========== RENDER ==========
   return (
     <>
       <style
@@ -1201,13 +1170,9 @@ export default function AppTK() {
                           type="file"
                           accept="image/*"
                           capture="environment"
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files[0]) {
-                              setFotoAktivitas(e.target.files[0]);
-                            }
-                          }}
-                          className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-indigo-50 file:text-indigo-600 mb-6"
+                          className="block w-full text-sm text-slate-600 file:mr-4 file:py-3 file:px-5 file:rounded-xl file:border-0 file:font-bold file:bg-indigo-50 file:text-indigo-600 mb-6"
                         />
+
                         <label className="block text-sm font-black text-slate-600 uppercase tracking-wider mb-3 flex items-center gap-2">
                           <Bowl size={16} /> 3. Daily Sheet Cepat
                         </label>

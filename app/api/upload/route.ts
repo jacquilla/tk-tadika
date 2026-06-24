@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import sharp from "sharp";
 
-// 1. SCOPE WAJIB TANPA .file
+// 1. Scope diubah agar bisa mengakses folder yang sudah ada
 const SCOPES = ["https://www.googleapis.com/auth/drive"];
-
 function getAuthClient() {
   const privateKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY?.replace(
     /\\n/g,
@@ -23,6 +22,7 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
+
     if (!file)
       return NextResponse.json({ error: "Tidak ada file" }, { status: 400 });
 
@@ -35,7 +35,6 @@ export async function POST(request: Request) {
     const auth = getAuthClient();
     const drive = google.drive({ version: "v3", auth });
 
-    // 2. Upload langsung ke Folder ID Anda
     const fileMetadata = {
       name: `TK-${Date.now()}.jpg`,
       parents: [process.env.GOOGLE_DRIVE_FOLDER_ID!],
@@ -50,18 +49,22 @@ export async function POST(request: Request) {
       requestBody: fileMetadata,
       media: media,
       fields: "id",
-      supportsAllDrives: true, // WAJIB
+      supportsAllDrives: true,
     });
 
     const fileId = createdFile.data.id!;
 
-    // 3. Langsung buat link publik (Tanpa permission create terpisah jika folder sudah disetting publik)
-    // Link format yang paling stabil untuk embedding
+    await drive.permissions.create({
+      fileId: fileId,
+      requestBody: { role: "reader", type: "anyone" },
+    });
+
+    // 2. Link yang stabil untuk Google Drive
     const imageUrl = `https://lh3.googleusercontent.com/d/${fileId}=w800`;
 
     return NextResponse.json({ success: true, imageUrl });
   } catch (error: any) {
-    console.error("Upload error:", error);
+    console.error("Upload error details:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
