@@ -434,6 +434,7 @@ export default function AppTK() {
     }
   };
 
+  // ✅ Fungsi simpanKegiatanMassal yang sudah bersih (tidak ada duplikasi)
   const simpanKegiatanMassal = async () => {
     getaranHalus();
     if (pilihanAnak.length === 0) return alert("Pilih minimal 1 anak!");
@@ -443,46 +444,37 @@ export default function AppTK() {
       !dailyMood &&
       !dailyTidurMulai &&
       !dailyTidurSelesai &&
-      !fotoAktivitas // <- Tambahan agar guru bisa kirim foto saja tanpa teks
+      !fotoAktivitas
     ) {
       return alert("Isi catatan kegiatan, foto, atau daily sheet!");
     }
 
     setIsSaving(true);
 
-    // ==========================================
-    // PROSES 1: UPLOAD FOTO KE GOOGLE DRIVE
-    // ==========================================
     let uploadedImageUrl = "";
     if (fotoAktivitas) {
       try {
         const formData = new FormData();
         formData.append("file", fotoAktivitas);
-
-        // Memanggil file route.ts kita
         const res = await fetch("/api/upload", {
           method: "POST",
           body: formData,
         });
-
         const data = await res.json();
         if (data.imageUrl) {
-          uploadedImageUrl = data.imageUrl; // Berhasil dapat link Drive
+          uploadedImageUrl = data.imageUrl;
         } else {
-          alert("Gagal mengupload foto ke Drive: " + data.error);
+          alert("Gagal upload ke Drive: " + data.error);
           setIsSaving(false);
-          return; // Berhenti jika foto gagal diupload
+          return;
         }
       } catch (error) {
-        alert("Terjadi kesalahan jaringan saat mengupload foto.");
+        alert("Kesalahan jaringan saat upload.");
         setIsSaving(false);
         return;
       }
     }
 
-    // ==========================================
-    // PROSES 2: SIMPAN DATA KE SUPABASE
-    // ==========================================
     const metadataSheet = {
       makan: dailyMakan || null,
       tidur:
@@ -490,7 +482,7 @@ export default function AppTK() {
           ? `${dailyTidurMulai} - ${dailyTidurSelesai}`
           : null,
       mood: dailyMood || null,
-      foto_url: uploadedImageUrl || null, // <- Link Drive masuk ke database
+      foto_url: uploadedImageUrl || null,
     };
 
     for (const id of pilihanAnak) {
@@ -512,18 +504,18 @@ export default function AppTK() {
 
     localStorage.removeItem(`draft_jurnal_${kelasAktif}`);
 
-    // Bersihkan formulir
     setPilihanAnak([]);
     setJenisKegiatan("");
     setDailyMakan("");
     setDailyTidurMulai("");
     setDailyTidurSelesai("");
     setDailyMood("");
-    setFotoAktivitas(null); // Bersihkan foto dari wadah
+    setFotoAktivitas(null);
     setIsSaving(false);
 
     alert("Jurnal & Foto berhasil disimpan!");
   };
+
   const handlePulang = async (anak: any) => {
     getaranHalus();
     const dropdownValue = penjemput[anak.id] || "Orang Tua";
@@ -784,10 +776,10 @@ export default function AppTK() {
                       }}
                     />
                   </div>
-                  <h1 className="text-3xl font-black text-slate-800 mb-1 tracking-tight">
+                  <h1 className="text-2xl font-black text-slate-800 mb-1 tracking-tight">
                     TK Tadika Mesra
                   </h1>
-                  <p className="text-slate-600 font-bold mb-10 text-[11px] tracking-widest uppercase">
+                  <p className="text-slate-600 font-bold mb-10 text-[9px] tracking-widest uppercase">
                     Portal Guru Digital
                   </p>
 
@@ -800,7 +792,7 @@ export default function AppTK() {
                         fill="currentColor"
                         className="animate-spin"
                       />
-                      <span className="text-base font-semibold text-slate-600">
+                      <span className="text-sm font-semibold text-slate-600">
                         Menghubungkan ke server...
                       </span>
                     </div>
@@ -817,7 +809,7 @@ export default function AppTK() {
                       <input
                         type="text"
                         placeholder="Masukkan nama Anda"
-                        className="w-full pl-14 pr-5 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-indigo-400 outline-none text-slate-800 font-bold text-lg transition-all placeholder:text-slate-500"
+                        className="w-full pl-14 pr-5 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-indigo-400 outline-none text-slate-800 font-bold text-base transition-all placeholder:text-slate-500"
                         value={namaGuru}
                         onChange={(e) => setNamaGuru(e.target.value)}
                       />
@@ -833,7 +825,7 @@ export default function AppTK() {
                           ? setTampilan("kelas")
                           : alert("Isi nama dulu!");
                       }}
-                      className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-extrabold py-5 rounded-2xl text-lg hover:from-indigo-500 hover:to-indigo-400 active:scale-[0.97] transition-all disabled:opacity-50 shadow-xl shadow-indigo-200 btn-premium flex justify-center items-center gap-3"
+                      className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-extrabold py-5 rounded-2xl text-base hover:from-indigo-500 hover:to-indigo-400 active:scale-[0.97] transition-all disabled:opacity-50 shadow-xl shadow-indigo-200 btn-premium flex justify-center items-center gap-3"
                     >
                       Masuk Sistem
                       <Login
@@ -847,7 +839,7 @@ export default function AppTK() {
                 </div>
               </div>
               <div className="w-full pb-4 flex flex-col items-center justify-center opacity-80">
-                <span className="text-[10px] text-slate-600 font-bold tracking-widest mb-2 uppercase">
+                <span className="text-[8px] text-slate-600 font-bold tracking-widest mb-2 uppercase">
                   Powered By
                 </span>
                 <div className="w-12 aspect-[5/7] relative">
@@ -870,7 +862,7 @@ export default function AppTK() {
                   <p className="text-slate-600 font-bold text-xs uppercase tracking-wider mb-1">
                     Selamat Bertugas,
                   </p>
-                  <h2 className="text-3xl font-black text-slate-800">
+                  <h2 className="text-2xl font-black text-slate-800">
                     Guru {namaGuru}
                   </h2>
                 </div>
@@ -889,7 +881,7 @@ export default function AppTK() {
                   />
                 </button>
               </div>
-              <p className="text-sm font-black text-slate-600 uppercase tracking-widest mb-6">
+              <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-6">
                 Pilih Kelas Hari Ini
               </p>
               <div className="space-y-5">
@@ -911,10 +903,10 @@ export default function AppTK() {
                     />
                   </div>
                   <div>
-                    <h4 className="text-2xl font-black text-slate-800">
+                    <h4 className="text-xl font-black text-slate-800">
                       Kelas Mawar
                     </h4>
-                    <p className="text-indigo-600 font-bold text-sm mt-2 bg-indigo-50 px-4 py-1.5 rounded-xl inline-block">
+                    <p className="text-indigo-600 font-bold text-xs mt-2 bg-indigo-50 px-4 py-1.5 rounded-xl inline-block">
                       {dataSemuaMurid.filter((m) => m.kelas === "mawar").length}{" "}
                       Murid
                     </p>
@@ -938,10 +930,10 @@ export default function AppTK() {
                     />
                   </div>
                   <div>
-                    <h4 className="text-2xl font-black text-slate-800">
+                    <h4 className="text-xl font-black text-slate-800">
                       Kelas Melati
                     </h4>
-                    <p className="text-teal-600 font-bold text-sm mt-2 bg-teal-50 px-4 py-1.5 rounded-xl inline-block">
+                    <p className="text-teal-600 font-bold text-xs mt-2 bg-teal-50 px-4 py-1.5 rounded-xl inline-block">
                       {
                         dataSemuaMurid.filter((m) => m.kelas === "melati")
                           .length
@@ -973,10 +965,10 @@ export default function AppTK() {
                       />
                     </div>
                     <div>
-                      <h1 className="text-2xl font-black text-slate-800 leading-tight">
+                      <h1 className="text-xl font-black text-slate-800 leading-tight">
                         Kelas {kelasAktif === "mawar" ? "Mawar" : "Melati"}
                       </h1>
-                      <div className="mt-1 inline-flex items-center gap-2 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider">
+                      <div className="mt-1 inline-flex items-center gap-2 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">
                         <User theme="filled" size={12} /> 1 Guru :{" "}
                         {muridHadir.length} Hadir
                       </div>
@@ -1006,10 +998,10 @@ export default function AppTK() {
                 {tabAktif === "datang" && (
                   <div className="space-y-4">
                     <div className="flex justify-between items-end mb-6">
-                      <h2 className="font-black text-slate-800 text-2xl tracking-tight">
+                      <h2 className="font-black text-slate-800 text-xl tracking-tight">
                         Check‑In Pagi
                       </h2>
-                      <span className="bg-indigo-50 text-indigo-600 text-sm font-extrabold px-4 py-2 rounded-xl border border-indigo-100">
+                      <span className="bg-indigo-50 text-indigo-600 text-xs font-extrabold px-4 py-2 rounded-xl border border-indigo-100">
                         Belum Hadir: {muridBelumHadirFilter.length}
                       </span>
                     </div>
@@ -1024,24 +1016,24 @@ export default function AppTK() {
                             anak,
                             "w-16 h-16 rounded-2xl object-cover border-2 border-slate-50 shadow-sm",
                           )}
-                          <span className="font-bold text-slate-800 text-lg">
+                          <span className="font-bold text-slate-800 text-base">
                             {anak.nama}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => bukaChatPersonal(anak)}
-                            className="bg-indigo-50 text-indigo-600 p-3 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95 touch-target"
+                            className="bg-indigo-50 text-indigo-600 p-1.5 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95"
                           >
                             <Message
                               theme="outline"
-                              size={24}
+                              size={16}
                               strokeWidth={4}
                             />
                           </button>
                           <button
                             onClick={() => handleDatang(anak)}
-                            className="bg-orange-500 text-white font-extrabold px-6 py-3.5 rounded-2xl shadow-lg shadow-orange-200 active:scale-95 transition-all btn-premium text-base"
+                            className="bg-orange-500 text-white font-extrabold px-6 py-3.5 rounded-2xl shadow-lg shadow-orange-200 active:scale-95 transition-all btn-premium text-sm"
                           >
                             Hadir
                           </button>
@@ -1054,7 +1046,7 @@ export default function AppTK() {
                 {/* TAB: KEGIATAN */}
                 {tabAktif === "kegiatan" && (
                   <div className="space-y-6">
-                    <h2 className="font-black text-slate-800 text-2xl tracking-tight mb-2">
+                    <h2 className="font-black text-slate-800 text-xl tracking-tight mb-2">
                       Aktivitas & Daily Sheet
                     </h2>
                     {muridHadirFilter.length === 0 ? (
@@ -1065,14 +1057,14 @@ export default function AppTK() {
                           fill="#94A3B8"
                           className="mx-auto mb-3"
                         />
-                        <h3 className="font-black text-slate-700 text-lg">
+                        <h3 className="font-black text-slate-700 text-base">
                           Kelas Kosong / Tak Ditemukan
                         </h3>
                       </div>
                     ) : (
                       <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 slide-up">
                         <div className="flex justify-between items-center mb-4">
-                          <label className="text-sm font-black text-slate-600 uppercase tracking-wider flex items-center gap-2">
+                          <label className="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center gap-2">
                             <CheckOne size={18} /> 1. Peserta
                           </label>
                           <div className="flex gap-2">
@@ -1090,7 +1082,7 @@ export default function AppTK() {
                                     .map((m) => m.id),
                                 );
                               }}
-                              className="text-xs font-bold text-rose-600 bg-rose-50 px-3 py-2 rounded-xl active:scale-95 hover:bg-rose-100 transition-colors"
+                              className="text-[10px] font-bold text-rose-600 bg-rose-50 px-3 py-2 rounded-xl active:scale-95 hover:bg-rose-100 transition-colors"
                             >
                               Pilih Belum
                             </button>
@@ -1103,7 +1095,7 @@ export default function AppTK() {
                                     : muridHadirFilter.map((m) => m.id),
                                 );
                               }}
-                              className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-2 rounded-xl active:scale-95 hover:bg-indigo-100 transition-colors"
+                              className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-3 py-2 rounded-xl active:scale-95 hover:bg-indigo-100 transition-colors"
                             >
                               {pilihanAnak.length === muridHadirFilter.length
                                 ? "Batal"
@@ -1144,7 +1136,7 @@ export default function AppTK() {
                                   "w-10 h-10 rounded-xl object-cover border border-slate-100",
                                 )}
                                 <span
-                                  className={`text-sm font-bold ${
+                                  className={`text-xs font-bold ${
                                     isSelected
                                       ? "text-indigo-700"
                                       : "text-slate-700"
@@ -1188,12 +1180,12 @@ export default function AppTK() {
                           })}
                         </div>
 
-                        <label className="block text-sm font-black text-slate-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <label className="block text-xs font-black text-slate-600 uppercase tracking-wider mb-3 flex items-center gap-2">
                           <MagicWand size={16} /> 2. Jurnal & Foto
                         </label>
                         <textarea
                           placeholder="Ketik aktivitas anak di sini..."
-                          className="w-full min-h-[100px] p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl mb-4 outline-none focus:border-indigo-400 text-slate-800 text-base font-semibold resize-y placeholder:text-slate-500"
+                          className="w-full min-h-[100px] p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl mb-4 outline-none focus:border-indigo-400 text-slate-800 text-sm font-semibold resize-y placeholder:text-slate-500"
                           value={jenisKegiatan}
                           onChange={(e) => setJenisKegiatan(e.target.value)}
                         />
@@ -1206,14 +1198,14 @@ export default function AppTK() {
                               setFotoAktivitas(e.target.files[0]);
                             }
                           }}
-                          className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-indigo-50 file:text-indigo-600 mb-6"
+                          className="block w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-indigo-50 file:text-indigo-600 mb-6"
                         />
-                        <label className="block text-sm font-black text-slate-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <label className="block text-xs font-black text-slate-600 uppercase tracking-wider mb-3 flex items-center gap-2">
                           <Bowl size={16} /> 3. Daily Sheet Cepat
                         </label>
                         <div className="space-y-5 mb-6 bg-slate-50 p-5 rounded-2xl border border-slate-100">
                           <div>
-                            <p className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <p className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
                               <Bowl theme="outline" size={18} /> Makan Siang
                             </p>
                             <div className="flex gap-3">
@@ -1226,7 +1218,7 @@ export default function AppTK() {
                                         dailyMakan === opsi ? "" : opsi,
                                       )
                                     }
-                                    className={`flex-1 py-3 text-sm font-bold rounded-xl border active:scale-95 transition-all ${
+                                    className={`flex-1 py-3 text-xs font-bold rounded-xl border active:scale-95 transition-all ${
                                       dailyMakan === opsi
                                         ? "bg-amber-100 border-amber-400 text-amber-800 shadow-sm"
                                         : "bg-white border-slate-200 text-slate-700"
@@ -1240,7 +1232,7 @@ export default function AppTK() {
                           </div>
                           <div className="flex gap-4">
                             <div className="flex-1">
-                              <p className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                              <p className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-2">
                                 <SleepOne theme="outline" size={18} /> Tidur
                                 Mulai
                               </p>
@@ -1250,11 +1242,11 @@ export default function AppTK() {
                                 onChange={(e) =>
                                   setDailyTidurMulai(e.target.value)
                                 }
-                                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-base font-bold text-slate-800 outline-none"
+                                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none"
                               />
                             </div>
                             <div className="flex-1">
-                              <p className="text-sm font-bold text-slate-700 mb-2">
+                              <p className="text-xs font-bold text-slate-700 mb-2">
                                 Selesai
                               </p>
                               <input
@@ -1263,12 +1255,12 @@ export default function AppTK() {
                                 onChange={(e) =>
                                   setDailyTidurSelesai(e.target.value)
                                 }
-                                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-base font-bold text-slate-800 outline-none"
+                                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none"
                               />
                             </div>
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <p className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
                               <EmotionHappy theme="outline" size={18} /> Mood
                               Anak
                             </p>
@@ -1300,14 +1292,14 @@ export default function AppTK() {
                                     onClick={() =>
                                       setDailyMood(isActive ? "" : m.label)
                                     }
-                                    className={`flex-1 py-3 text-base rounded-xl border flex justify-center items-center gap-2 active:scale-95 transition-all ${
+                                    className={`flex-1 py-3 text-sm rounded-xl border flex justify-center items-center gap-2 active:scale-95 transition-all ${
                                       isActive
                                         ? m.activeClass
                                         : "bg-white border-slate-200 text-slate-600 grayscale opacity-70"
                                     }`}
                                   >
-                                    <span className="text-xl">{m.icon}</span>
-                                    <span className="text-sm font-bold uppercase tracking-wider">
+                                    <span className="text-lg">{m.icon}</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">
                                       {m.label}
                                     </span>
                                   </button>
@@ -1320,7 +1312,7 @@ export default function AppTK() {
                         <button
                           onClick={simpanKegiatanMassal}
                           disabled={isSaving}
-                          className="w-full bg-indigo-600 text-white font-extrabold py-5 rounded-2xl active:scale-[0.97] transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 btn-premium text-lg"
+                          className="w-full bg-indigo-600 text-white font-extrabold py-5 rounded-2xl active:scale-[0.97] transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 btn-premium text-base"
                         >
                           {isSaving ? (
                             <Loading
@@ -1347,7 +1339,7 @@ export default function AppTK() {
                 {/* TAB: PULANG */}
                 {tabAktif === "pulang" && (
                   <div className="space-y-6">
-                    <h2 className="font-black text-slate-800 text-2xl tracking-tight mb-4">
+                    <h2 className="font-black text-slate-800 text-xl tracking-tight mb-4">
                       Check‑Out
                     </h2>
                     {muridHadirFilter.map((anak, i) => (
@@ -1362,24 +1354,24 @@ export default function AppTK() {
                               anak,
                               "w-16 h-16 rounded-2xl object-cover border-2 border-slate-50 shadow-sm",
                             )}
-                            <span className="font-bold text-slate-800 text-xl">
+                            <span className="font-bold text-slate-800 text-lg">
                               {anak.nama}
                             </span>
                           </div>
                           <button
                             onClick={() => bukaChatPersonal(anak)}
-                            className="bg-indigo-50 text-indigo-600 p-3 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95 touch-target"
+                            className="bg-indigo-50 text-indigo-600 p-1.5 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95"
                           >
                             <Message
                               theme="outline"
-                              size={24}
+                              size={16}
                               strokeWidth={4}
                             />
                           </button>
                         </div>
                         <div className="space-y-5">
                           <select
-                            className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-base font-bold outline-none focus:border-indigo-400 transition-all"
+                            className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-bold outline-none focus:border-indigo-400 transition-all"
                             value={penjemput[anak.id] || "Orang Tua"}
                             onChange={(e) =>
                               setPenjemput((prev) => ({
@@ -1398,7 +1390,7 @@ export default function AppTK() {
                             <input
                               type="text"
                               placeholder="Tuliskan nama penjemput"
-                              className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-400 text-slate-800 text-base font-semibold transition-all placeholder:text-slate-500"
+                              className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-400 text-slate-800 text-sm font-semibold transition-all placeholder:text-slate-500"
                               value={penjemputCustom[anak.id] || ""}
                               onChange={(e) =>
                                 setPenjemputCustom((prev) => ({
@@ -1411,7 +1403,7 @@ export default function AppTK() {
                           <input
                             type="text"
                             placeholder="Catatan Baju / Plat Nomor..."
-                            className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-400 text-slate-800 text-base font-semibold transition-all placeholder:text-slate-500"
+                            className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-400 text-slate-800 text-sm font-semibold transition-all placeholder:text-slate-500"
                             value={ketPenjemput[anak.id] || ""}
                             onChange={(e) =>
                               setKetPenjemput((prev) => ({
@@ -1422,7 +1414,7 @@ export default function AppTK() {
                           />
                           <button
                             onClick={() => handlePulang(anak)}
-                            className="w-full mt-4 bg-orange-500 text-white font-extrabold py-5 rounded-2xl hover:bg-orange-400 active:scale-[0.97] transition-all text-lg flex items-center justify-center gap-3 shadow-xl shadow-orange-200 btn-premium"
+                            className="w-full mt-4 bg-orange-500 text-white font-extrabold py-5 rounded-2xl hover:bg-orange-400 active:scale-[0.97] transition-all text-base flex items-center justify-center gap-3 shadow-xl shadow-orange-200 btn-premium"
                           >
                             <Home
                               theme="outline"
@@ -1441,7 +1433,7 @@ export default function AppTK() {
                 {/* TAB: KEUANGAN SPP */}
                 {tabAktif === "keuangan" && (
                   <div className="space-y-5">
-                    <h2 className="font-black text-slate-800 text-2xl tracking-tight mb-4">
+                    <h2 className="font-black text-slate-800 text-xl tracking-tight mb-4">
                       Status SPP
                     </h2>
                     <div className="mb-6 slide-up">
@@ -1463,10 +1455,10 @@ export default function AppTK() {
                             className="text-indigo-300"
                           />
                         )}
-                        <span className="font-black text-lg tracking-wide">
+                        <span className="font-black text-base tracking-wide">
                           Mulai Penagihan Bulan Baru
                         </span>
-                        <span className="text-sm text-slate-300 text-center font-medium leading-relaxed">
+                        <span className="text-xs text-slate-300 text-center font-medium leading-relaxed">
                           Set semua murid menjadi menunggak & Kirim WA tagihan
                           massal secara otomatis
                         </span>
@@ -1486,24 +1478,24 @@ export default function AppTK() {
                                 anak,
                                 "w-14 h-14 rounded-2xl border-2 border-slate-50 object-cover shadow-sm",
                               )}
-                              <span className="font-bold text-slate-800 text-lg">
+                              <span className="font-bold text-slate-800 text-base">
                                 {anak.nama}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => bukaChatPersonal(anak)}
-                                className="bg-indigo-50 text-indigo-600 p-3 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95 touch-target"
+                                className="bg-indigo-50 text-indigo-600 p-1.5 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95"
                               >
                                 <Message
                                   theme="outline"
-                                  size={22}
+                                  size={16}
                                   strokeWidth={4}
                                 />
                               </button>
                               <button
                                 onClick={() => toggleSpp(anak.id, statusSpp)}
-                                className={`px-6 py-3 rounded-2xl font-black text-sm transition-all active:scale-95 border-2 ${
+                                className={`px-6 py-3 rounded-2xl font-black text-xs transition-all active:scale-95 border-2 ${
                                   statusSpp === "LUNAS"
                                     ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                                     : "bg-rose-50 text-rose-600 border-rose-100"
@@ -1522,7 +1514,7 @@ export default function AppTK() {
                 {/* TAB: LAPORAN (dengan sub-tab Harian & Mingguan) */}
                 {tabAktif === "laporan" && (
                   <div className="space-y-6">
-                    <h2 className="font-black text-slate-800 text-2xl tracking-tight mb-2">
+                    <h2 className="font-black text-slate-800 text-xl tracking-tight mb-2">
                       Laporan
                     </h2>
 
@@ -1533,7 +1525,7 @@ export default function AppTK() {
                           setSubTabLaporan("harian");
                           setSelectedStudentReport(null);
                         }}
-                        className={`flex-1 py-3 rounded-xl text-sm font-extrabold transition-all ${
+                        className={`flex-1 py-3 rounded-xl text-xs font-extrabold transition-all ${
                           subTabLaporan === "harian"
                             ? "bg-white text-indigo-600 shadow-sm"
                             : "text-slate-600"
@@ -1547,7 +1539,7 @@ export default function AppTK() {
                           setSelectedStudentReport(null);
                           setWeeklyData(null);
                         }}
-                        className={`flex-1 py-3 rounded-xl text-sm font-extrabold transition-all ${
+                        className={`flex-1 py-3 rounded-xl text-xs font-extrabold transition-all ${
                           subTabLaporan === "mingguan"
                             ? "bg-white text-indigo-600 shadow-sm"
                             : "text-slate-600"
@@ -1560,7 +1552,7 @@ export default function AppTK() {
                     {/* Konten sub-tab */}
                     {subTabLaporan === "harian" && (
                       <>
-                        <p className="text-sm font-bold text-slate-600">
+                        <p className="text-xs font-bold text-slate-600">
                           Klik anak untuk melihat laporan hari ini
                         </p>
                         <div className="space-y-3">
@@ -1582,7 +1574,7 @@ export default function AppTK() {
                                   anak,
                                   "w-12 h-12 rounded-xl object-cover border border-slate-100",
                                 )}
-                                <span className="font-bold text-slate-800">
+                                <span className="font-bold text-slate-800 text-sm">
                                   {anak.nama}
                                 </span>
                               </div>
@@ -1598,10 +1590,10 @@ export default function AppTK() {
                         {/* Detail laporan harian */}
                         {selectedStudentReport && (
                           <div className="mt-4 p-5 bg-white rounded-[2rem] shadow-sm border border-slate-100 slide-up">
-                            <h3 className="font-black text-indigo-700 text-lg mb-3">
+                            <h3 className="font-black text-indigo-700 text-base mb-3">
                               Laporan Hari Ini: {selectedStudentReport.nama}
                             </h3>
-                            <div className="space-y-2 text-sm text-slate-800">
+                            <div className="space-y-2 text-xs text-slate-800">
                               <p>
                                 <span className="font-bold">Status:</span>{" "}
                                 {statusAnak[selectedStudentReport.id] ===
@@ -1661,7 +1653,7 @@ export default function AppTK() {
                                     {statusDailySheetHarian[
                                       selectedStudentReport.id
                                     ].makan && (
-                                      <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-lg text-xs font-bold">
+                                      <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-lg text-[10px] font-bold">
                                         🍱{" "}
                                         {
                                           statusDailySheetHarian[
@@ -1673,7 +1665,7 @@ export default function AppTK() {
                                     {statusDailySheetHarian[
                                       selectedStudentReport.id
                                     ].tidur && (
-                                      <span className="bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">
+                                      <span className="bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-[10px] font-bold">
                                         💤{" "}
                                         {
                                           statusDailySheetHarian[
@@ -1685,7 +1677,7 @@ export default function AppTK() {
                                     {statusDailySheetHarian[
                                       selectedStudentReport.id
                                     ].mood && (
-                                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-lg text-xs font-bold">
+                                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-lg text-[10px] font-bold">
                                         😊{" "}
                                         {
                                           statusDailySheetHarian[
@@ -1717,7 +1709,7 @@ export default function AppTK() {
                               className="text-slate-700"
                             />
                           </button>
-                          <span className="font-black text-sm bg-indigo-50 px-4 py-2 rounded-xl text-indigo-700">
+                          <span className="font-black text-xs bg-indigo-50 px-4 py-2 rounded-xl text-indigo-700">
                             {getWeekRange(
                               weeklyOffset,
                             ).mondayDate.toLocaleDateString("id-ID", {
@@ -1744,7 +1736,7 @@ export default function AppTK() {
                           </button>
                         </div>
 
-                        <p className="text-sm font-bold text-slate-600 mb-2">
+                        <p className="text-xs font-bold text-slate-600 mb-2">
                           Klik anak untuk melihat laporan mingguan
                         </p>
                         <div className="space-y-3">
@@ -1759,7 +1751,7 @@ export default function AppTK() {
                                   anak,
                                   "w-12 h-12 rounded-xl object-cover border border-slate-100",
                                 )}
-                                <span className="font-bold text-slate-800">
+                                <span className="font-bold text-slate-800 text-sm">
                                   {anak.nama}
                                 </span>
                               </div>
@@ -1783,7 +1775,7 @@ export default function AppTK() {
                         )}
                         {weeklyData && !isLoadingWeekly && (
                           <div className="mt-4 p-5 bg-white rounded-[2rem] shadow-sm border border-slate-100 slide-up">
-                            <h3 className="font-black text-indigo-700 text-lg mb-4">
+                            <h3 className="font-black text-indigo-700 text-base mb-4">
                               Laporan Mingguan: {weeklyData.anak.nama}
                             </h3>
                             <div className="space-y-4">
@@ -1801,11 +1793,11 @@ export default function AppTK() {
                                       className="p-3 bg-slate-50 rounded-xl"
                                     >
                                       <div className="flex justify-between items-center mb-1">
-                                        <span className="font-extrabold text-slate-700">
+                                        <span className="font-extrabold text-slate-700 text-xs">
                                           {hari}
                                         </span>
                                         <span
-                                          className={`text-xs font-bold px-2 py-0.5 rounded-lg ${
+                                          className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
                                             data.hadir
                                               ? data.hadir.status_hadir ===
                                                   "hadir" ||
@@ -1825,7 +1817,7 @@ export default function AppTK() {
                                         </span>
                                       </div>
                                       {data.kegiatan.length > 0 && (
-                                        <ul className="text-xs text-slate-600 list-disc pl-4">
+                                        <ul className="text-[10px] text-slate-600 list-disc pl-4">
                                           {data.kegiatan.map(
                                             (k: any, i: number) => (
                                               <li key={i}>{k.deskripsi}</li>
@@ -1854,7 +1846,7 @@ export default function AppTK() {
                       <div className="w-16 h-1.5 bg-slate-200 rounded-full"></div>
                     </div>
                     <div className="px-6 py-5 flex justify-between items-center border-b border-slate-100">
-                      <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 truncate">
+                      <h2 className="text-lg font-black text-slate-800 flex items-center gap-3 truncate">
                         <Message
                           theme="outline"
                           size={28}
@@ -1877,18 +1869,18 @@ export default function AppTK() {
                       </button>
                     </div>
                     <div className="p-6 overflow-y-auto flex-1 hide-scrollbar flex flex-col">
-                      <label className="block text-sm font-black text-slate-600 uppercase tracking-widest mb-4">
+                      <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-4">
                         Tulis Pesan
                       </label>
                       <textarea
-                        className="w-full flex-1 min-h-[220px] p-5 bg-slate-50 border-2 border-slate-200 rounded-3xl outline-none focus:border-indigo-400 text-slate-800 font-semibold text-base resize-none mb-6 transition-all leading-relaxed placeholder:text-slate-500"
+                        className="w-full flex-1 min-h-[220px] p-5 bg-slate-50 border-2 border-slate-200 rounded-3xl outline-none focus:border-indigo-400 text-slate-800 font-semibold text-sm resize-none mb-6 transition-all leading-relaxed placeholder:text-slate-500"
                         value={teksChatPersonal}
                         onChange={(e) => setTeksChatPersonal(e.target.value)}
                       />
                       <button
                         disabled={isMengirimChat}
                         onClick={handleKirimChatPersonal}
-                        className="w-full bg-indigo-600 text-white font-extrabold py-5 rounded-2xl active:scale-[0.97] transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 btn-premium text-lg disabled:opacity-70"
+                        className="w-full bg-indigo-600 text-white font-extrabold py-5 rounded-2xl active:scale-[0.97] transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 btn-premium text-base disabled:opacity-70"
                       >
                         {isMengirimChat ? (
                           <Loading
@@ -1936,7 +1928,7 @@ export default function AppTK() {
                       <div className="w-16 h-1.5 bg-slate-200 rounded-full"></div>
                     </div>
                     <div className="px-6 py-5 flex justify-between items-center border-b border-slate-100">
-                      <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                      <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
                         <VolumeNotice
                           theme="outline"
                           size={28}
@@ -1969,7 +1961,7 @@ export default function AppTK() {
                             setTipeSiaran("umum");
                             setTeksSiaran(TEMPLATE_PESAN.umum);
                           }}
-                          className={`px-6 py-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all border-2 ${
+                          className={`px-6 py-4 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border-2 ${
                             tipeSiaran === "umum"
                               ? "bg-indigo-50 border-indigo-400 text-indigo-700"
                               : "bg-white border-slate-200 text-slate-700"
@@ -1983,7 +1975,7 @@ export default function AppTK() {
                             setTipeSiaran("spp");
                             setTeksSiaran(TEMPLATE_PESAN.spp);
                           }}
-                          className={`px-6 py-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all border-2 ${
+                          className={`px-6 py-4 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border-2 ${
                             tipeSiaran === "spp"
                               ? "bg-indigo-50 border-indigo-400 text-indigo-700"
                               : "bg-white border-slate-200 text-slate-700"
@@ -1993,14 +1985,14 @@ export default function AppTK() {
                         </button>
                       </div>
                       <textarea
-                        className="w-full flex-1 min-h-[240px] p-5 bg-slate-50 border-2 border-slate-200 rounded-3xl outline-none focus:border-indigo-400 text-slate-800 font-semibold text-base resize-none mb-6 transition-all placeholder:text-slate-500"
+                        className="w-full flex-1 min-h-[240px] p-5 bg-slate-50 border-2 border-slate-200 rounded-3xl outline-none focus:border-indigo-400 text-slate-800 font-semibold text-sm resize-none mb-6 transition-all placeholder:text-slate-500"
                         value={teksSiaran}
                         onChange={(e) => setTeksSiaran(e.target.value)}
                       />
                       <button
                         disabled={isBroadcasting}
                         onClick={handleKirimSiaran}
-                        className="w-full bg-slate-900 text-white font-extrabold py-5 rounded-2xl active:scale-[0.97] transition-all flex justify-center gap-3 shadow-xl shadow-slate-300 btn-premium text-lg"
+                        className="w-full bg-slate-900 text-white font-extrabold py-5 rounded-2xl active:scale-[0.97] transition-all flex justify-center gap-3 shadow-xl shadow-slate-300 btn-premium text-base"
                       >
                         {isBroadcasting ? (
                           <Loading
@@ -2033,7 +2025,7 @@ export default function AppTK() {
                   }`}
                 >
                   <Login size={26} className="mb-1" strokeWidth={3} />
-                  <span className="text-[11px] font-black uppercase">Tiba</span>
+                  <span className="text-[9px] font-black uppercase">Tiba</span>
                 </button>
                 <button
                   onClick={() => {
@@ -2048,7 +2040,7 @@ export default function AppTK() {
                   }`}
                 >
                   <Box size={26} className="mb-1" strokeWidth={3} />
-                  <span className="text-[11px] font-black uppercase">
+                  <span className="text-[9px] font-black uppercase">
                     Aktivitas
                   </span>
                 </button>
@@ -2065,7 +2057,7 @@ export default function AppTK() {
                   }`}
                 >
                   <Logout size={26} className="mb-1" strokeWidth={3} />
-                  <span className="text-[11px] font-black uppercase">
+                  <span className="text-[9px] font-black uppercase">
                     Pulang
                   </span>
                 </button>
@@ -2082,7 +2074,7 @@ export default function AppTK() {
                   }`}
                 >
                   <BankCard size={26} className="mb-1" strokeWidth={3} />
-                  <span className="text-[11px] font-black uppercase">SPP</span>
+                  <span className="text-[9px] font-black uppercase">SPP</span>
                 </button>
                 <button
                   onClick={() => {
@@ -2097,7 +2089,7 @@ export default function AppTK() {
                   }`}
                 >
                   <Notes size={26} className="mb-1" strokeWidth={3} />
-                  <span className="text-[11px] font-black uppercase">
+                  <span className="text-[9px] font-black uppercase">
                     Laporan
                   </span>
                 </button>

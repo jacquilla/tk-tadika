@@ -1,70 +1,44 @@
-import { NextResponse } from "next/server";
-import { google } from "googleapis";
-import sharp from "sharp";
+import { NextRequest, NextResponse } from "next/server";
 
-// 1. Scope diubah agar bisa mengakses folder yang sudah ada
-const SCOPES = ["https://www.googleapis.com/auth/drive"];
-function getAuthClient() {
-  const privateKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY?.replace(
-    /\\n/g,
-    "\n",
-  );
-  return new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_DRIVE_CLIENT_EMAIL,
-      private_key: privateKey,
-    },
-    scopes: SCOPES,
-  });
-}
-
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    const body = await request.json();
 
-    if (!file)
-      return NextResponse.json({ error: "Tidak ada file" }, { status: 400 });
+    // Tambahkan variabel penangkap url gambar dari frontend (jika ada)
+    const { targetHp, pesanCustom, urlGambar } = body;
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const compressed = await sharp(buffer)
-      .resize({ width: 800, withoutEnlargement: true })
-      .jpeg({ quality: 80 })
-      .toBuffer();
+    // Mengambil token dari file .env.local Anda
+    const TOKEN_FONNTE = process.env.FONNTE_TOKEN || "";
 
-    const auth = getAuthClient();
-    const drive = google.drive({ version: "v3", auth });
+    const formData = new FormData();
+    formData.append("target", String(targetHp));
+    formData.append("message", pesanCustom);
 
-    const fileMetadata = {
-      name: `TK-${Date.now()}.jpg`,
-      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID!],
-    };
+    // Jika frontend mengirimkan link gambar (hasil upload Drive), tambahkan ke Fonnte
+    if (urlGambar) {
+      formData.append("url", urlGambar);
+    }
 
-    const media = {
-      mimeType: "image/jpeg",
-      body: require("stream").Readable.from(compressed),
-    };
-
-    const createdFile = await drive.files.create({
-      requestBody: fileMetadata,
-      media: media,
-      fields: "id",
-      supportsAllDrives: true,
+    const response = await fetch("https://api.fonnte.com/send", {
+      method: "POST",
+      headers: { Authorization: TOKEN_FONNTE },
+      body: formData,
     });
 
-    const fileId = createdFile.data.id!;
+    const result = await response.json();
 
-    await drive.permissions.create({
-      fileId: fileId,
-      requestBody: { role: "reader", type: "anyone" },
-    });
-
-    // 2. Link yang stabil untuk Google Drive
-    const imageUrl = `https://lh3.googleusercontent.com/d/${fileId}=w800`;
-
-    return NextResponse.json({ success: true, imageUrl });
-  } catch (error: any) {
-    console.error("Upload error details:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (result.status === true) {
+      return NextResponse.json({ success: true, detail: result });
+    } else {
+      return NextResponse.json(
+        { success: false, pesan: result.reason || "Ditolak Fonnte" },
+        { status: 400 },
+      );
+    }
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, pesan: "Server Error" },
+      { status: 500 },
+    );
   }
 }

@@ -1,67 +1,37 @@
-import { NextResponse } from "next/server";
-import { google } from "googleapis";
-import sharp from "sharp";
+import { NextRequest, NextResponse } from "next/server";
 
-// 1. SCOPE WAJIB TANPA .file
-const SCOPES = ["https://www.googleapis.com/auth/drive"];
-
-function getAuthClient() {
-  const privateKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY?.replace(
-    /\\n/g,
-    "\n",
-  );
-  return new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_DRIVE_CLIENT_EMAIL,
-      private_key: privateKey,
-    },
-    scopes: SCOPES,
-  });
-}
-
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    if (!file)
-      return NextResponse.json({ error: "Tidak ada file" }, { status: 400 });
+    const body = await request.json();
+    const { targetHp, pesanCustom } = body; // Sekarang kurir menerima pesan utuh
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const compressed = await sharp(buffer)
-      .resize({ width: 800, withoutEnlargement: true })
-      .jpeg({ quality: 80 })
-      .toBuffer();
+    // Token Fonnte kamu
+    const TOKEN_FONNTE = "5vzpjJG47YMsDvgNEcDG";
 
-    const auth = getAuthClient();
-    const drive = google.drive({ version: "v3", auth });
+    const formData = new FormData();
+    formData.append("target", String(targetHp));
+    formData.append("message", pesanCustom); // Memasukkan pesan rangkuman
 
-    // 2. Upload langsung ke Folder ID Anda
-    const fileMetadata = {
-      name: `TK-${Date.now()}.jpg`,
-      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID!],
-    };
-
-    const media = {
-      mimeType: "image/jpeg",
-      body: require("stream").Readable.from(compressed),
-    };
-
-    const createdFile = await drive.files.create({
-      requestBody: fileMetadata,
-      media: media,
-      fields: "id",
-      supportsAllDrives: true, // WAJIB
+    const response = await fetch("https://api.fonnte.com/send", {
+      method: "POST",
+      headers: { Authorization: TOKEN_FONNTE },
+      body: formData,
     });
 
-    const fileId = createdFile.data.id!;
+    const result = await response.json();
 
-    // 3. Langsung buat link publik (Tanpa permission create terpisah jika folder sudah disetting publik)
-    // Link format yang paling stabil untuk embedding
-    const imageUrl = `https://lh3.googleusercontent.com/d/${fileId}=w800`;
-
-    return NextResponse.json({ success: true, imageUrl });
-  } catch (error: any) {
-    console.error("Upload error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (result.status === true) {
+      return NextResponse.json({ success: true, detail: result });
+    } else {
+      return NextResponse.json(
+        { success: false, pesan: result.reason || "Ditolak Fonnte" },
+        { status: 400 },
+      );
+    }
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, pesan: "Server Error" },
+      { status: 500 },
+    );
   }
 }
