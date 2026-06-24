@@ -15,7 +15,7 @@ import {
   Save,
   Loading,
   Left,
-  Speaker,
+  VolumeNotice,
   Close,
   BankCard,
   User,
@@ -50,6 +50,13 @@ const TEMPLATE_PESAN = {
     "Syalom Bunda,\n\nTabe', demi kenyamanan dan kesehatan ananda selama berkegiatan di sekolah hari ini, mohon kesediaannya untuk membekali ananda dengan:\n\n- Botol minum pribadi\n- [TAMBAHKAN KEBUTUHAN LAIN]\n\nKurré sumanga' atas kerja samanya Bunda! 🎒✨",
 };
 
+// Helper: Mengambil tanggal lokal (Indonesia)
+const getTanggalLokal = () => {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split("T")[0];
+};
+
 export default function AppTK() {
   const [tampilan, setTampilan] = useState("login");
   const [namaGuru, setNamaGuru] = useState("");
@@ -66,6 +73,10 @@ export default function AppTK() {
   >({});
   const [isResettingSpp, setIsResettingSpp] = useState(false);
   const [statusAnak, setStatusAnak] = useState<Record<string, string>>({});
+
+  const [statusDailySheetHarian, setStatusDailySheetHarian] = useState<
+    Record<string, any>
+  >({});
 
   const [logKegiatan, setLogKegiatan] = useState<Record<string, any[]>>({});
   const [pilihanAnak, setPilihanAnak] = useState<string[]>([]);
@@ -92,6 +103,50 @@ export default function AppTK() {
 
   const [cariMurid, setCariMurid] = useState("");
 
+  // MUAT DRAFT AUTO-SAVE DARI DATABASE/LOCALSTORAGE
+  useEffect(() => {
+    if (tampilan === "dashboard" && kelasAktif) {
+      const savedDraft = localStorage.getItem(`draft_jurnal_${kelasAktif}`);
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft);
+          setJenisKegiatan(parsed.jenisKegiatan || "");
+          setDailyMakan(parsed.dailyMakan || "");
+          setDailyTidurMulai(parsed.dailyTidurMulai || "");
+          setDailyTidurSelesai(parsed.dailyTidurSelesai || "");
+          setDailyMood(parsed.dailyMood || "");
+          setPilihanAnak(parsed.pilihanAnak || []);
+        } catch (e) {
+          console.error("Gagal memuat draf", e);
+        }
+      }
+    }
+  }, [tampilan, kelasAktif]);
+
+  // SIMPAN DRAFT AUTO-SAVE SAAT ADA PERUBAHAN
+  useEffect(() => {
+    if (tampilan === "dashboard" && kelasAktif) {
+      const draft = {
+        jenisKegiatan,
+        dailyMakan,
+        dailyTidurMulai,
+        dailyTidurSelesai,
+        dailyMood,
+        pilihanAnak,
+      };
+      localStorage.setItem(`draft_jurnal_${kelasAktif}`, JSON.stringify(draft));
+    }
+  }, [
+    jenisKegiatan,
+    dailyMakan,
+    dailyTidurMulai,
+    dailyTidurSelesai,
+    dailyMood,
+    pilihanAnak,
+    tampilan,
+    kelasAktif,
+  ]);
+
   // FETCHING AWAL
   useEffect(() => {
     const tarikDataAwal = async () => {
@@ -103,13 +158,13 @@ export default function AppTK() {
         if (error) throw error;
         if (muridData) setDataSemuaMurid(muridData);
 
-        const hariIni = new Date().toISOString().split("T")[0];
+        const hariIni = getTanggalLokal();
+
         const { data: hadirData, error: hadirError } = await supabase
           .from("kehadiran")
           .select("*")
           .eq("tanggal", hariIni);
         if (hadirError) throw hadirError;
-
         if (hadirData) {
           const statusMap: Record<string, string> = {};
           hadirData.forEach((h) => {
@@ -117,9 +172,25 @@ export default function AppTK() {
           });
           setStatusAnak(statusMap);
         }
+
+        const { data: logData, error: logError } = await supabase
+          .from("log_aktivitas")
+          .select("murid_id, metadata")
+          .eq("kategori", "DailySheet")
+          .gte("created_at", hariIni);
+
+        if (!logError && logData) {
+          const sheetMap: Record<string, any> = {};
+          logData.forEach((l) => {
+            sheetMap[l.murid_id] = {
+              ...sheetMap[l.murid_id],
+              ...(l.metadata || {}),
+            };
+          });
+          setStatusDailySheetHarian(sheetMap);
+        }
       } catch (err) {
         console.error("Gagal mengambil data awal:", err);
-        alert("Gagal memuat data. Periksa koneksi atau refresh halaman.");
       } finally {
         setIsLoading(false);
       }
@@ -156,7 +227,10 @@ export default function AppTK() {
       try {
         const tglBatas = new Date();
         tglBatas.setDate(tglBatas.getDate() - 7);
-        const tglFilter = tglBatas.toISOString();
+        tglBatas.setMinutes(
+          tglBatas.getMinutes() - tglBatas.getTimezoneOffset(),
+        );
+        const tglFilter = tglBatas.toISOString().split("T")[0];
 
         const muridIds = dataSemuaMurid
           .filter((m) => m.kelas.toLowerCase() === kelasAktif.toLowerCase())
@@ -170,8 +244,8 @@ export default function AppTK() {
           .from("kehadiran")
           .select("*")
           .in("murid_id", muridIds)
-          .gte("waktu_datang", tglFilter)
-          .order("waktu_datang", { ascending: false });
+          .gte("tanggal", tglFilter)
+          .order("tanggal", { ascending: false });
         if (hadirError) throw hadirError;
 
         const { data: logData, error: logError } = await supabase
@@ -184,7 +258,7 @@ export default function AppTK() {
         const grouped: Record<string, any[]> = {};
         if (hadirData) {
           hadirData.forEach((h) => {
-            const date = h.waktu_datang.split("T")[0];
+            const date = h.tanggal;
             if (!grouped[date]) grouped[date] = [];
             const logAnak =
               logData?.filter(
@@ -203,7 +277,6 @@ export default function AppTK() {
         setDataLaporan(grouped);
       } catch (err) {
         console.error("Gagal mengambil laporan:", err);
-        alert("Gagal memuat laporan.");
       } finally {
         setIsLoadingLaporan(false);
       }
@@ -225,6 +298,7 @@ export default function AppTK() {
       m.nama.toLowerCase().includes(cariMurid.toLowerCase().trim()),
     );
   };
+
   const muridBelumHadirFilter = filterNama(muridBelumHadir);
   const muridHadirFilter = filterNama(muridHadir);
   const muridSemuaFilter = filterNama(muridSemua);
@@ -246,7 +320,6 @@ export default function AppTK() {
         .update({ status_spp: statusBaru })
         .eq("id", idAnak);
     } catch (err) {
-      console.error("Gagal update SPP:", err);
       alert("Gagal mengubah status SPP.");
     }
   };
@@ -265,6 +338,7 @@ export default function AppTK() {
         .update({ status_spp: "MENUNGGAK" })
         .in("id", muridIds);
       if (error) throw error;
+
       const newStatus = { ...statusSppDinamis };
       muridIds.forEach((id) => (newStatus[id] = "MENUNGGAK"));
       setStatusSppDinamis(newStatus);
@@ -280,7 +354,6 @@ export default function AppTK() {
         `Berhasil mereset tagihan dan mengirim ${countTerkirim} pesan SPP!`,
       );
     } catch (error) {
-      console.error(error);
       alert("Terjadi kesalahan saat memproses tagihan massal.");
     } finally {
       setIsResettingSpp(false);
@@ -313,30 +386,11 @@ export default function AppTK() {
       });
     } catch (err) {
       console.error("Gagal mencatat aktivitas:", err);
-      alert("Gagal menyimpan log aktivitas.");
     }
-  };
-
-  const klikMilestoneCepat = (kategori: string) => {
-    getaranHalus();
-    const templates: Record<string, string> = {
-      Motorik:
-        "[Motorik] Melatih gerak fisik dan koordinasi anak melalui kegiatan: ",
-      Kreativitas:
-        "[Kreativitas] Mengasah imajinasi dan ide kreatif anak saat membuat karya: ",
-      Sosial:
-        "[Sosial] Melatih interaksi, keberanian, dan kemandirian anak ketika: ",
-    };
-    setJenisKegiatan((prev) =>
-      prev ? prev + "\n" + templates[kategori] : templates[kategori],
-    );
   };
 
   const kirimWA = async (nomorHp: string, pesan: string) => {
-    if (!nomorHp) {
-      console.warn("Nomor HP kosong, pesan tidak dikirim.");
-      return;
-    }
+    if (!nomorHp) return;
     try {
       const res = await fetch("/api/wa", {
         method: "POST",
@@ -345,7 +399,6 @@ export default function AppTK() {
       });
       if (!res.ok) throw new Error("Respon API tidak ok");
     } catch (e) {
-      console.error("Error WA:", e);
       alert("Gagal mengirim pesan WhatsApp. Periksa koneksi atau nomor HP.");
     }
   };
@@ -365,10 +418,16 @@ export default function AppTK() {
     alert(`Pesan berhasil terkirim ke orang tua ${chatPersonalAktif.nama}!`);
   };
 
+  // ✅ PERBAIKAN PADA FUNGSI HADIR/DATANG (SUDAH BISA KIRIM WA)
   const handleDatang = async (anak: any) => {
     getaranHalus();
-    const today = new Date().toISOString().split("T")[0];
-    const now = new Date().toISOString();
+    const today = getTanggalLokal();
+    const nowObj = new Date();
+    const nowStr = nowObj.toISOString();
+    const timeDatang = nowObj.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
     try {
       const { data: existing, error } = await supabase
@@ -382,24 +441,28 @@ export default function AppTK() {
       if (existing) {
         await supabase
           .from("kehadiran")
-          .update({ status_hadir: "hadir", waktu_datang: now })
+          .update({ status_hadir: "hadir", waktu_datang: nowStr })
           .eq("id", existing.id);
       } else {
         await supabase.from("kehadiran").insert({
           murid_id: anak.id,
           status_hadir: "hadir",
-          waktu_datang: now,
+          waktu_datang: nowStr,
           tanggal: today,
         });
       }
+
       setStatusAnak((prev) => ({ ...prev, [anak.id]: "hadir" }));
       catatKegiatan(
         anak.id,
         "Tiba di sekolah dengan ceria (Check-In)",
         "Kehadiran",
       );
+
+      // KIRIM WA SETELAH UPDATE DATABASE BERHASIL
+      const pesanDatang = `📖 *Informasi TK Tadika Mesra*\n\nSyalom Bunda/Ayah,\nAnanda *${anak.nama}* telah tiba di sekolah dengan selamat pada pukul *${timeDatang}*.\n\nSemoga hari ini ananda belajar dan bermain dengan penuh sukacita. Kurré sumanga' dan Tuhan memberkati. 🙏✨`;
+      await kirimWA(anak.nomor_hp_ortu, pesanDatang);
     } catch (err) {
-      console.error("Gagal mencatat kehadiran:", err);
       alert("Gagal menyimpan data kehadiran.");
     }
   };
@@ -407,7 +470,6 @@ export default function AppTK() {
   const simpanKegiatanMassal = async () => {
     getaranHalus();
     if (pilihanAnak.length === 0) return alert("Pilih minimal 1 anak!");
-    // Perbaikan: cek semua field yang mungkin diisi
     if (
       !jenisKegiatan &&
       !dailyMakan &&
@@ -417,8 +479,10 @@ export default function AppTK() {
     ) {
       return alert("Isi catatan kegiatan atau daily sheet!");
     }
+
     setIsSaving(true);
     await new Promise((resolve) => setTimeout(resolve, 600));
+
     const metadataSheet = {
       makan: dailyMakan || null,
       tidur:
@@ -427,6 +491,7 @@ export default function AppTK() {
           : null,
       mood: dailyMood || null,
     };
+
     for (const id of pilihanAnak) {
       await catatKegiatan(
         id,
@@ -435,6 +500,17 @@ export default function AppTK() {
         metadataSheet,
       );
     }
+
+    setStatusDailySheetHarian((prev) => {
+      const newState = { ...prev };
+      pilihanAnak.forEach((id) => {
+        newState[id] = { ...(newState[id] || {}), ...metadataSheet };
+      });
+      return newState;
+    });
+
+    localStorage.removeItem(`draft_jurnal_${kelasAktif}`);
+
     setPilihanAnak([]);
     setJenisKegiatan("");
     setDailyMakan("");
@@ -448,7 +524,7 @@ export default function AppTK() {
     getaranHalus();
     const siapaJemput = penjemput[anak.id] || "Orang Tua";
     const detailJemput = ketPenjemput[anak.id] || "";
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTanggalLokal();
 
     setStatusAnak((prev) => ({ ...prev, [anak.id]: "pulang" }));
     try {
@@ -462,7 +538,6 @@ export default function AppTK() {
         })
         .eq("murid_id", anak.id)
         .eq("tanggal", today);
-
       catatKegiatan(
         anak.id,
         `Pulang (Dijemput: ${siapaJemput}${detailJemput ? ` - ${detailJemput}` : ""})`,
@@ -489,7 +564,6 @@ export default function AppTK() {
       const pesanFinal = `📖 *Buku Penghubung Digital TK Tadika Mesra*\n\nSyalom Bunda/Ayah,\nHari ini ananda *${anak.nama}* telah mengikuti kegiatan di sekolah dengan baik! ✨\n\n📝 *Aktivitas Hari Ini:*\n${rangkumanText || "- Berkegiatan rutin di kelas"}${ringkasanDaily}\n\n🚗 *Informasi Kepulangan:*\nAnanda telah dijemput oleh: *${siapaJemput}*\n${detailJemput ? `Keterangan: ${detailJemput}` : ""}\n\nTerima kasih atas kepercayaannya Bunda/Ayah. Kurré sumanga'. 🙏`;
       await kirimWA(anak.nomor_hp_ortu, pesanFinal);
     } catch (err) {
-      console.error("Gagal memproses kepulangan:", err);
       alert("Gagal menyimpan data kepulangan.");
     }
   };
@@ -517,19 +591,17 @@ export default function AppTK() {
           `📢 *PENGUMUMAN KELAS*\n\n${teksSiaran}`,
         );
       }
-      setIsBroadcasting(false);
-      setBukaSiaran(false);
       alert("Siaran berhasil terkirim!");
     } catch (err) {
-      console.error("Gagal mengirim siaran:", err);
       alert("Terjadi kesalahan saat mengirim siaran.");
     } finally {
       setIsBroadcasting(false);
+      setBukaSiaran(false);
     }
   };
 
   const SearchBar = () => (
-    <div className="relative mb-4">
+    <div className="relative mb-4 slide-up z-10">
       <Search
         theme="outline"
         size={18}
@@ -540,22 +612,36 @@ export default function AppTK() {
         placeholder="Cari nama murid..."
         value={cariMurid}
         onChange={(e) => setCariMurid(e.target.value)}
-        className="w-full pl-10 pr-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400"
+        className="w-full pl-10 pr-10 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400 focus:shadow-[0_0_0_4px_rgba(79,70,229,0.1)] transition-all"
       />
+      {cariMurid && (
+        <button
+          onClick={() => {
+            getaranHalus();
+            setCariMurid("");
+          }}
+          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 active:scale-90 transition-all"
+        >
+          <Close theme="outline" size={16} strokeWidth={4} />
+        </button>
+      )}
     </div>
   );
 
-  // Helper untuk render gambar murid dengan fallback
-  const renderFotoMurid = (anak: any, className: string) => (
-    <img
-      src={anak.foto_url || ""}
-      onError={(e) => {
-        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(anak.nama)}&background=EEF2FF&color=4F46E5&rounded=false&size=64`;
-      }}
-      className={className}
-      alt={anak.nama}
-    />
-  );
+  // ✅ PERBAIKAN FUNGSI RENDER FOTO (Mencegah URL kosong masuk ke HTML)
+  const renderFotoMurid = (anak: any, className: string) => {
+    const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(anak.nama)}&background=EEF2FF&color=4F46E5&rounded=false&size=64`;
+    return (
+      <img
+        src={anak.foto_url || fallbackUrl}
+        onError={(e) => {
+          e.currentTarget.src = fallbackUrl;
+        }}
+        className={className}
+        alt={anak.nama}
+      />
+    );
+  };
 
   // ========== RENDER ==========
   return (
@@ -571,55 +657,56 @@ export default function AppTK() {
       <style
         dangerouslySetInnerHTML={{
           __html: `
-       .hide-scrollbar::-webkit-scrollbar { display: none; }
-       .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-       .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
-       .fade-in { animation: fadeIn 0.4s ease-out forwards; }
-       .slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
         @keyframes slideUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
       `,
         }}
       />
+
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[3px]"></div>
+
       <div className="relative w-full max-w-md h-[100dvh] md:h-[90vh] bg-[#F8FAFC] shadow-[0_20px_50px_rgba(0,0,0,0.2)] md:rounded-[2.5rem] flex flex-col overflow-hidden border-0 md:border border-white/60">
+        {/* HALAMAN LOGIN */}
         {tampilan === "login" && (
-          <div className="flex-1 flex flex-col bg-white fade-in overflow-y-auto">
-            {/* Bagian Atas: Logo PiaSmart */}
-            <div className="w-full pt-6 pb-2 flex justify-center">
+          <div className="flex-1 flex flex-col p-6 bg-white fade-in relative">
+            <div className="w-full pt-8 pb-4 flex justify-center">
               <Image
                 src="/piasmart.png"
                 alt="PiaSmart"
-                width={140}
-                height={36}
+                width={120}
+                height={30}
                 priority
                 className="opacity-90 object-contain"
               />
             </div>
 
-            {/* Bagian Tengah: Judul, Input, Tombol (flex-1 agar memenuhi ruang) */}
-            <div className="flex-1 flex flex-col items-center justify-center w-full px-6 py-2">
+            <div className="flex-1 flex flex-col items-center justify-center w-full">
               <div className="w-full text-center">
-                <div className="relative inline-block mb-6">
+                <div className="relative inline-block mb-8">
                   <img
                     src="logo-tk.jpeg"
                     alt="Logo TK"
-                    className="w-24 h-24 mx-auto shadow-sm rounded-3xl border-2 border-slate-50 object-cover"
+                    className="w-28 h-28 mx-auto shadow-sm rounded-3xl border-2 border-slate-50 object-cover"
                     onError={(e) => {
                       e.currentTarget.src =
                         "https://ui-avatars.com/api/?name=TK&background=EEF2FF&color=4F46E5&rounded=false&size=128";
                     }}
                   />
                 </div>
-                <h1 className="text-2xl font-extrabold text-slate-800 mb-0.5 tracking-tight">
+                <h1 className="text-2xl font-extrabold text-slate-800 mb-1 tracking-tight">
                   TK Tadika Mesra
                 </h1>
-                <p className="text-slate-400 font-bold mb-6 text-[10px] tracking-widest uppercase">
+                <p className="text-slate-400 font-bold mb-10 text-[10px] tracking-widest uppercase">
                   Portal Guru Digital
                 </p>
 
                 {isLoading ? (
-                  <div className="flex flex-col items-center justify-center text-indigo-500 space-y-3 mb-6">
+                  <div className="flex flex-col items-center justify-center text-indigo-500 space-y-3 mb-8">
                     <Loading
                       theme="outline"
                       size={32}
@@ -632,7 +719,7 @@ export default function AppTK() {
                     </span>
                   </div>
                 ) : (
-                  <div className="relative mb-6 w-full max-w-[300px] mx-auto">
+                  <div className="relative mb-8 w-full max-w-[300px] mx-auto">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
                       <User
                         theme="outline"
@@ -644,7 +731,7 @@ export default function AppTK() {
                     <input
                       type="text"
                       placeholder="Masukkan nama Anda..."
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50/80 border border-slate-200 rounded-2xl focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 outline-none text-slate-700 font-bold text-base transition-all placeholder:text-slate-400"
+                      className="w-full pl-12 pr-4 py-4 bg-slate-50/80 border border-slate-200 rounded-2xl focus:border-indigo-400 outline-none text-slate-700 font-bold text-base transition-all"
                       value={namaGuru}
                       onChange={(e) => setNamaGuru(e.target.value)}
                     />
@@ -656,13 +743,9 @@ export default function AppTK() {
                     disabled={isLoading}
                     onClick={() => {
                       getaranHalus();
-                      if (namaGuru.trim()) {
-                        setTampilan("kelas");
-                      } else {
-                        alert("Isi nama dulu!");
-                      }
+                      namaGuru ? setTampilan("kelas") : alert("Isi nama dulu!");
                     }}
-                    className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl text-base hover:bg-indigo-500 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_8px_20px_-6px_rgba(79,70,229,0.4)] flex justify-center items-center gap-2"
+                    className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl text-base hover:bg-indigo-500 active:scale-[0.98] transition-all disabled:opacity-50 shadow-md flex justify-center items-center gap-2"
                   >
                     Masuk Sistem{" "}
                     <Login
@@ -675,24 +758,24 @@ export default function AppTK() {
                 </div>
               </div>
             </div>
-
-            {/* Bagian Bawah: Powered By + Logo Digi (mt-auto agar selalu di bawah) */}
-            <div className="w-full mt-auto pb-6 flex flex-col items-center justify-center opacity-80">
+            <div className="w-full pb-6 flex flex-col items-center justify-center opacity-80">
               <span className="text-[10px] text-slate-400 font-bold tracking-widest mb-2 uppercase">
                 Powered By
               </span>
               <Image
                 src="/logo-digi.png"
                 alt="Digi.ID"
-                width={80}
-                height={80}
-                className="object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                width={70}
+                height={70}
+                className="object-contain grayscale"
               />
             </div>
           </div>
         )}
+
+        {/* HALAMAN KELAS */}
         {tampilan === "kelas" && (
-          <div className="flex-1 flex flex-col p-6 bg-slate-50 overflow-y-auto hide-scrollbar fade-in">
+          <div className="flex-1 p-6 bg-slate-50 overflow-y-auto hide-scrollbar fade-in">
             <div className="flex justify-between items-center mb-10 mt-4">
               <div>
                 <p className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-1">
@@ -707,7 +790,7 @@ export default function AppTK() {
                   getaranHalus();
                   setTampilan("login");
                 }}
-                className="p-3.5 bg-white border border-slate-200 text-slate-400 rounded-full hover:bg-slate-100 hover:text-slate-600 active:scale-95 transition-all shadow-sm"
+                className="p-3.5 bg-white border border-slate-200 text-slate-400 rounded-full hover:bg-slate-100 active:scale-95 transition-all"
               >
                 <Logout
                   theme="outline"
@@ -723,15 +806,14 @@ export default function AppTK() {
             <div className="space-y-4">
               <button
                 onClick={() => {
-                  getaranHalus();
                   setKelasAktif("mawar");
                   setTampilan("dashboard");
                   setTabAktif("datang");
                   setCariMurid("");
                 }}
-                className="w-full bg-white border border-indigo-100 p-5 rounded-3xl hover:border-indigo-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.98] transition-all flex items-center gap-5 text-left group relative overflow-hidden"
+                className="w-full bg-white border border-indigo-100 p-5 rounded-3xl hover:border-indigo-300 active:scale-[0.98] transition-all flex items-center gap-5 text-left group"
               >
-                <div className="w-16 h-16 bg-indigo-50/50 rounded-2xl flex items-center justify-center text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors relative z-10">
+                <div className="w-16 h-16 bg-indigo-50/50 rounded-2xl flex items-center justify-center text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
                   <Peoples
                     theme="outline"
                     size={28}
@@ -739,7 +821,7 @@ export default function AppTK() {
                     fill="currentColor"
                   />
                 </div>
-                <div className="relative z-10">
+                <div>
                   <h4 className="text-xl font-extrabold text-slate-800">
                     Kelas Mawar
                   </h4>
@@ -751,15 +833,14 @@ export default function AppTK() {
               </button>
               <button
                 onClick={() => {
-                  getaranHalus();
                   setKelasAktif("melati");
                   setTampilan("dashboard");
                   setTabAktif("datang");
                   setCariMurid("");
                 }}
-                className="w-full bg-white border border-teal-100 p-5 rounded-3xl hover:border-teal-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] active:scale-[0.98] transition-all flex items-center gap-5 text-left group relative overflow-hidden"
+                className="w-full bg-white border border-teal-100 p-5 rounded-3xl hover:border-teal-300 active:scale-[0.98] transition-all flex items-center gap-5 text-left group"
               >
-                <div className="w-16 h-16 bg-teal-50/50 rounded-2xl flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-white transition-colors relative z-10">
+                <div className="w-16 h-16 bg-teal-50/50 rounded-2xl flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-white transition-colors">
                   <Peoples
                     theme="outline"
                     size={28}
@@ -767,7 +848,7 @@ export default function AppTK() {
                     fill="currentColor"
                   />
                 </div>
-                <div className="relative z-10">
+                <div>
                   <h4 className="text-xl font-extrabold text-slate-800">
                     Kelas Melati
                   </h4>
@@ -781,6 +862,7 @@ export default function AppTK() {
           </div>
         )}
 
+        {/* HALAMAN DASHBOARD */}
         {tampilan === "dashboard" && (
           <div className="flex flex-col h-full relative fade-in">
             <div className="glass-panel z-40 sticky top-0 px-6 pt-10 pb-4 border-b border-slate-200/50">
@@ -811,7 +893,7 @@ export default function AppTK() {
                     getaranHalus();
                     setTampilan("kelas");
                   }}
-                  className="p-3 bg-white border border-slate-200 text-slate-500 rounded-full hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+                  className="p-3 bg-white border border-slate-200 text-slate-500 rounded-full hover:bg-slate-50 active:scale-95 transition-all"
                 >
                   <Left
                     theme="outline"
@@ -824,189 +906,199 @@ export default function AppTK() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 pt-6 pb-[160px] hide-scrollbar relative">
+              {tabAktif !== "laporan" && <SearchBar />}
+
+              {/* TAB: DATANG */}
               {tabAktif === "datang" && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-end mb-2">
+                  <div className="flex justify-between items-end mb-4">
                     <h2 className="font-extrabold text-slate-800 text-xl tracking-tight">
                       Check-In Pagi
                     </h2>
-                    <span className="bg-indigo-50 text-indigo-600 text-[11px] font-extrabold px-3 py-1.5 rounded-lg border-indigo-100">
+                    <span className="bg-indigo-50 text-indigo-600 text-[11px] font-extrabold px-3 py-1.5 rounded-lg border border-indigo-100">
                       Belum Hadir: {muridBelumHadirFilter.length}
                     </span>
                   </div>
-                  <SearchBar />
-                  {muridBelumHadirFilter.length === 0 ? (
-                    <div className="text-center py-12 bg-emerald-50/50 rounded-[2rem] border border-emerald-100">
-                      <div className="inline-flex bg-white p-4 rounded-full text-emerald-500 shadow-sm border border-emerald-50 mb-4">
-                        <CheckOne theme="filled" size={36} fill="#10B981" />
+                  {muridBelumHadirFilter.map((anak, i) => (
+                    <div
+                      key={anak.id}
+                      className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between slide-up"
+                      style={{ animationDelay: `${i * 0.05}s` }}
+                    >
+                      <div className="flex items-center gap-4">
+                        {renderFotoMurid(
+                          anak,
+                          "w-12 h-12 rounded-[1rem] object-cover border-2 border-slate-50",
+                        )}
+                        <span className="font-bold text-slate-800">
+                          {anak.nama}
+                        </span>
                       </div>
-                      <h3 className="font-extrabold text-emerald-800 text-lg">
-                        Kelas Penuh!
-                      </h3>
-                      <p className="text-emerald-600/80 font-medium text-sm mt-1">
-                        Semua murid telah hadir hari ini.
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => bukaChatPersonal(anak)}
+                          className="bg-indigo-50 text-indigo-600 p-2.5 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95"
+                        >
+                          <Message theme="outline" size={20} strokeWidth={4} />
+                        </button>
+                        <button
+                          onClick={() => handleDatang(anak)}
+                          className="bg-indigo-600 text-white font-bold px-6 py-2.5 rounded-2xl shadow-md active:scale-95 transition-all"
+                        >
+                          Hadir
+                        </button>
+                      </div>
                     </div>
-                  ) : (
-                    muridBelumHadirFilter.map((anak, i) => (
-                      <div
-                        key={anak.id}
-                        className="bg-white p-4 rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 flex items-center justify-between slide-up"
-                        style={{ animationDelay: `${i * 0.05}s` }}
-                      >
-                        <div className="flex items-center gap-4">
-                          {renderFotoMurid(
-                            anak,
-                            "w-12 h-12 rounded-[1rem] object-cover border-2 border-slate-50",
-                          )}
-                          <span className="font-bold text-slate-800">
-                            {anak.nama}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => bukaChatPersonal(anak)}
-                            className="bg-indigo-50 text-indigo-600 p-2.5 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95"
-                          >
-                            <Message
-                              theme="outline"
-                              size={20}
-                              strokeWidth={4}
-                            />
-                          </button>
-                          <button
-                            onClick={() => handleDatang(anak)}
-                            className="bg-indigo-600 text-white font-bold px-6 py-2.5 rounded-2xl shadow-md active:scale-95 transition-all"
-                          >
-                            Hadir
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                  ))}
                 </div>
               )}
 
+              {/* TAB: KEGIATAN */}
               {tabAktif === "kegiatan" && (
                 <div className="space-y-6">
                   <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-2">
                     Aktivitas & Daily Sheet
                   </h2>
-                  {muridHadir.length === 0 ? (
+                  {muridHadirFilter.length === 0 ? (
                     <div className="text-center py-12 bg-slate-50 rounded-[2rem] border border-slate-200 border-dashed">
-                      <div className="inline-flex bg-white p-4 rounded-full shadow-sm border border-slate-100 mb-4">
-                        <Attention theme="filled" size={36} fill="#94A3B8" />
-                      </div>
+                      <Attention
+                        theme="filled"
+                        size={36}
+                        fill="#94A3B8"
+                        className="mx-auto mb-2"
+                      />
                       <h3 className="font-extrabold text-slate-700">
-                        Kelas Masih Kosong
+                        Kelas Kosong / Tak Ditemukan
                       </h3>
-                      <p className="text-slate-500 font-medium text-sm mt-1">
-                        Lakukan check-in terlebih dahulu.
-                      </p>
                     </div>
                   ) : (
                     <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 slide-up">
-                      <SearchBar />
                       <div className="flex justify-between items-center mb-3">
                         <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                           <CheckOne size={14} /> 1. Peserta
                         </label>
-                        <button
-                          onClick={() => {
-                            getaranHalus();
-                            setPilihanAnak(
-                              pilihanAnak.length === muridHadirFilter.length
-                                ? []
-                                : muridHadirFilter.map((m) => m.id),
-                            );
-                          }}
-                          className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md active:scale-95"
-                        >
-                          {pilihanAnak.length === muridHadirFilter.length
-                            ? "Batal Pilih"
-                            : "Pilih Semua"}
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mb-5 max-h-32 overflow-y-auto hide-scrollbar bg-slate-50 p-2 rounded-2xl border border-slate-100">
-                        {muridHadirFilter.map((anak) => (
+                        <div className="flex gap-2">
                           <button
-                            key={anak.id}
                             onClick={() => {
                               getaranHalus();
-                              setPilihanAnak((prev) =>
-                                prev.includes(anak.id)
-                                  ? prev.filter((id) => id !== anak.id)
-                                  : [...prev, anak.id],
+                              setPilihanAnak(
+                                muridHadirFilter
+                                  .filter((m) => {
+                                    const d = statusDailySheetHarian[m.id];
+                                    return (
+                                      !d || (!d.makan && !d.tidur && !d.mood)
+                                    );
+                                  })
+                                  .map((m) => m.id),
                               );
                             }}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 border-2 ${
-                              pilihanAnak.includes(anak.id)
-                                ? "bg-indigo-50 border-indigo-400 text-indigo-700"
-                                : "bg-white border-slate-100 text-slate-500 hover:border-slate-200"
-                            }`}
+                            className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-md active:scale-95 hover:bg-rose-100 transition-colors"
                           >
-                            {anak.nama}
+                            Pilih Belum
                           </button>
-                        ))}
+                          <button
+                            onClick={() => {
+                              getaranHalus();
+                              setPilihanAnak(
+                                pilihanAnak.length === muridHadirFilter.length
+                                  ? []
+                                  : muridHadirFilter.map((m) => m.id),
+                              );
+                            }}
+                            className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md active:scale-95 hover:bg-indigo-100 transition-colors"
+                          >
+                            {pilihanAnak.length === muridHadirFilter.length
+                              ? "Batal"
+                              : "Semua"}
+                          </button>
+                        </div>
                       </div>
-                      <div className="h-px bg-slate-100 w-full mb-5"></div>
-                      <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                        <MagicWand size={14} /> 2. Asisten Penulis
+
+                      <div className="flex flex-wrap gap-2 mb-5 max-h-48 overflow-y-auto hide-scrollbar bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                        {muridHadirFilter.map((anak) => {
+                          const isSelected = pilihanAnak.includes(anak.id);
+                          const dailyData = statusDailySheetHarian[anak.id];
+                          const hasDailyData =
+                            !!dailyData &&
+                            (dailyData.makan ||
+                              dailyData.tidur ||
+                              dailyData.mood);
+
+                          return (
+                            <button
+                              key={anak.id}
+                              onClick={() => {
+                                getaranHalus();
+                                setPilihanAnak((prev) =>
+                                  prev.includes(anak.id)
+                                    ? prev.filter((id) => id !== anak.id)
+                                    : [...prev, anak.id],
+                                );
+                              }}
+                              className={`flex flex-col items-start gap-1 px-3 py-2.5 rounded-[1rem] text-left transition-all active:scale-95 border-2 ${
+                                isSelected
+                                  ? "bg-indigo-50 border-indigo-400 shadow-sm"
+                                  : "bg-white border-slate-200 hover:border-slate-300"
+                              }`}
+                            >
+                              <span
+                                className={`text-xs font-bold leading-none ${isSelected ? "text-indigo-700" : "text-slate-700"}`}
+                              >
+                                {anak.nama}
+                              </span>
+
+                              {hasDailyData && (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  {dailyData.makan && (
+                                    <Bowl
+                                      theme="filled"
+                                      size={14}
+                                      className="text-emerald-500"
+                                    />
+                                  )}
+                                  {dailyData.tidur && (
+                                    <SleepOne
+                                      theme="filled"
+                                      size={14}
+                                      className="text-amber-500"
+                                    />
+                                  )}
+                                  {dailyData.mood && (
+                                    <EmotionHappy
+                                      theme="filled"
+                                      size={14}
+                                      className={
+                                        dailyData.mood === "Senang"
+                                          ? "text-blue-500"
+                                          : dailyData.mood === "Biasa"
+                                            ? "text-indigo-500"
+                                            : "text-rose-600"
+                                      }
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                        <MagicWand size={14} /> 2. Jurnal & Foto
                       </label>
-                      <div className="grid grid-cols-3 gap-2 mb-5">
-                        <button
-                          onClick={() => klikMilestoneCepat("Motorik")}
-                          className="flex flex-col items-center p-2 rounded-xl border border-rose-100 bg-rose-50/50 hover:bg-rose-50 active:scale-[0.98] transition-all"
-                        >
-                          <ChartLine
-                            theme="outline"
-                            size={20}
-                            strokeWidth={3}
-                            fill="#F43F5E"
-                            className="mb-1"
-                          />
-                          <span className="text-[10px] font-extrabold text-rose-700">
-                            Motorik
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => klikMilestoneCepat("Kreativitas")}
-                          className="flex flex-col items-center p-2 rounded-xl border border-amber-100 bg-amber-50/50 hover:bg-amber-50 active:scale-[0.98] transition-all"
-                        >
-                          <ColorCard
-                            theme="outline"
-                            size={20}
-                            strokeWidth={3}
-                            fill="#F59E0B"
-                            className="mb-1"
-                          />
-                          <span className="text-[10px] font-extrabold text-amber-700">
-                            Kreativitas
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => klikMilestoneCepat("Sosial")}
-                          className="flex flex-col items-center p-2 rounded-xl border border-emerald-100 bg-emerald-50/50 hover:bg-emerald-50 active:scale-[0.98] transition-all"
-                        >
-                          <Peoples
-                            theme="outline"
-                            size={20}
-                            strokeWidth={3}
-                            fill="#10B981"
-                            className="mb-1"
-                          />
-                          <span className="text-[10px] font-extrabold text-emerald-700">
-                            Sosial
-                          </span>
-                        </button>
-                      </div>
                       <textarea
-                        placeholder="Contoh: Belajar mewarnai dengan jari (finger painting)..."
+                        placeholder="Ketik aktivitas anak di sini..."
                         className="w-full min-h-[80px] p-3 bg-slate-50 border-2 border-slate-100 rounded-xl mb-3 outline-none focus:border-indigo-400 text-slate-800 text-sm font-bold resize-y"
                         value={jenisKegiatan}
                         onChange={(e) => setJenisKegiatan(e.target.value)}
                       />
-                      <div className="h-px bg-slate-100 w-full mb-5"></div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-indigo-50 file:text-indigo-600 mb-6"
+                      />
+
                       <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                         <Bowl size={14} /> 3. Daily Sheet Cepat
                       </label>
@@ -1022,11 +1114,7 @@ export default function AppTK() {
                                 onClick={() =>
                                   setDailyMakan(dailyMakan === opsi ? "" : opsi)
                                 }
-                                className={`flex-1 py-2 text-xs font-bold rounded-lg border active:scale-95 ${
-                                  dailyMakan === opsi
-                                    ? "bg-amber-100 border-amber-300 text-amber-800"
-                                    : "bg-white border-slate-200 text-slate-500"
-                                }`}
+                                className={`flex-1 py-2 text-xs font-bold rounded-lg border active:scale-95 ${dailyMakan === opsi ? "bg-amber-100 border-amber-300 text-amber-800" : "bg-white border-slate-200 text-slate-500"}`}
                               >
                                 {opsi}
                               </button>
@@ -1065,38 +1153,56 @@ export default function AppTK() {
                           <p className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1">
                             <EmotionHappy theme="outline" size={14} /> Mood Anak
                           </p>
+
                           <div className="flex gap-2">
                             {[
-                              { label: "Senang", icon: "😊" },
-                              { label: "Biasa", icon: "😐" },
-                              { label: "Rewel", icon: "😭" },
-                            ].map((m) => (
-                              <button
-                                key={m.label}
-                                onClick={() =>
-                                  setDailyMood(
-                                    dailyMood === m.label ? "" : m.label,
-                                  )
-                                }
-                                className={`flex-1 py-2 text-sm rounded-lg border flex justify-center items-center gap-1.5 active:scale-95 ${
-                                  dailyMood === m.label
-                                    ? "bg-indigo-100 border-indigo-300 text-indigo-800 font-extrabold"
-                                    : "bg-white border-slate-200 text-slate-400"
-                                }`}
-                              >
-                                <span>{m.icon}</span>{" "}
-                                <span className="text-[10px] uppercase tracking-wider">
-                                  {m.label}
-                                </span>
-                              </button>
-                            ))}
+                              {
+                                label: "Senang",
+                                icon: "😊",
+                                activeClass:
+                                  "bg-emerald-100 border-emerald-400 text-emerald-800 font-extrabold grayscale-0 opacity-100",
+                              },
+                              {
+                                label: "Biasa",
+                                icon: "😐",
+                                activeClass:
+                                  "bg-indigo-100 border-indigo-400 text-indigo-800 font-extrabold grayscale-0 opacity-100",
+                              },
+                              {
+                                label: "Rewel",
+                                icon: "😭",
+                                activeClass:
+                                  "bg-rose-100 border-rose-400 text-rose-800 font-extrabold grayscale-0 opacity-100",
+                              },
+                            ].map((m) => {
+                              const isActive = dailyMood === m.label;
+                              return (
+                                <button
+                                  key={m.label}
+                                  onClick={() =>
+                                    setDailyMood(isActive ? "" : m.label)
+                                  }
+                                  className={`flex-1 py-2 text-sm rounded-lg border flex justify-center items-center gap-1.5 active:scale-95 transition-all ${
+                                    isActive
+                                      ? m.activeClass
+                                      : "bg-white border-slate-200 text-slate-400 grayscale opacity-70"
+                                  }`}
+                                >
+                                  <span>{m.icon}</span>{" "}
+                                  <span className="text-[10px] uppercase tracking-wider">
+                                    {m.label}
+                                  </span>
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
+
                       <button
                         onClick={simpanKegiatanMassal}
                         disabled={isSaving}
-                        className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-[0_8px_20px_-6px_rgba(79,70,229,0.4)]"
+                        className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md"
                       >
                         {isSaving ? (
                           <Loading className="animate-spin" />
@@ -1110,103 +1216,85 @@ export default function AppTK() {
                 </div>
               )}
 
+              {/* TAB: PULANG */}
               {tabAktif === "pulang" && (
                 <div className="space-y-4">
-                  <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-2">
+                  <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-4">
                     Check-Out
                   </h2>
-                  <SearchBar />
-                  {muridHadirFilter.length === 0 ? (
-                    <div className="text-center py-12 bg-slate-50 rounded-[2rem] border border-slate-200 border-dashed">
-                      <div className="inline-flex bg-white p-4 rounded-full shadow-sm border border-slate-100 mb-4">
-                        <Home theme="outline" size={36} fill="#94A3B8" />
+                  {muridHadirFilter.map((anak, i) => (
+                    <div
+                      key={anak.id}
+                      className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 mb-4 slide-up"
+                      style={{ animationDelay: `${i * 0.05}s` }}
+                    >
+                      <div className="flex items-center justify-between mb-5 pb-5 border-b border-slate-100">
+                        <div className="flex items-center gap-4">
+                          {renderFotoMurid(
+                            anak,
+                            "w-14 h-14 rounded-[1.25rem] object-cover border-2 border-slate-50",
+                          )}
+                          <span className="font-bold text-slate-800 text-lg">
+                            {anak.nama}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => bukaChatPersonal(anak)}
+                          className="bg-indigo-50 text-indigo-600 p-2.5 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95"
+                        >
+                          <Message theme="outline" size={20} strokeWidth={4} />
+                        </button>
                       </div>
-                      <h3 className="font-extrabold text-slate-700">
-                        Area Steril
-                      </h3>
-                      <p className="text-slate-500 font-medium text-sm mt-1">
-                        Semua anak sudah dipulangkan.
-                      </p>
+                      <div className="space-y-4">
+                        <select
+                          className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl text-slate-700 text-sm font-bold outline-none focus:border-indigo-400 transition-all"
+                          onChange={(e) =>
+                            setPenjemput((prev) => ({
+                              ...prev,
+                              [anak.id]: e.target.value,
+                            }))
+                          }
+                          defaultValue="Orang Tua"
+                        >
+                          <option value="Orang Tua">Orang Tua Kandung</option>
+                          <option value="Kakek/Nenek">Kakek / Nenek</option>
+                          <option value="Driver">Driver Jemputan</option>
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="Catatan Baju / Plat Nomor..."
+                          className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-400 text-slate-700 text-sm font-bold transition-all"
+                          onChange={(e) =>
+                            setKetPenjemput((prev) => ({
+                              ...prev,
+                              [anak.id]: e.target.value,
+                            }))
+                          }
+                        />
+                        <button
+                          onClick={() => handlePulang(anak)}
+                          className="w-full mt-2 bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-500 active:scale-[0.98] transition-all text-sm flex items-center justify-center gap-2 shadow-md"
+                        >
+                          <Home
+                            theme="outline"
+                            size={18}
+                            strokeWidth={4}
+                            fill="currentColor"
+                          />{" "}
+                          <span>Pulangkan & Kirim Notif</span>
+                        </button>
+                      </div>
                     </div>
-                  ) : (
-                    muridHadirFilter.map((anak, i) => (
-                      <div
-                        key={anak.id}
-                        className="bg-white p-6 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 mb-4 slide-up"
-                        style={{ animationDelay: `${i * 0.05}s` }}
-                      >
-                        <div className="flex items-center justify-between mb-5 pb-5 border-b border-slate-100">
-                          <div className="flex items-center gap-4">
-                            {renderFotoMurid(
-                              anak,
-                              "w-14 h-14 rounded-[1.25rem] object-cover border-2 border-slate-50",
-                            )}
-                            <span className="font-bold text-slate-800 text-lg">
-                              {anak.nama}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => bukaChatPersonal(anak)}
-                            className="bg-indigo-50 text-indigo-600 p-2.5 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95"
-                          >
-                            <Message
-                              theme="outline"
-                              size={20}
-                              strokeWidth={4}
-                            />
-                          </button>
-                        </div>
-                        <div className="space-y-4">
-                          <select
-                            className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl text-slate-700 text-sm font-bold outline-none focus:border-indigo-400 transition-all appearance-none"
-                            onChange={(e) =>
-                              setPenjemput((prev) => ({
-                                ...prev,
-                                [anak.id]: e.target.value,
-                              }))
-                            }
-                            defaultValue="Orang Tua"
-                          >
-                            <option value="Orang Tua">Orang Tua Kandung</option>
-                            <option value="Kakek/Nenek">Kakek / Nenek</option>
-                            <option value="Driver">Driver Jemputan</option>
-                          </select>
-                          <input
-                            type="text"
-                            placeholder="Catatan Baju / Plat Nomor..."
-                            className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-400 text-slate-700 text-sm font-bold transition-all"
-                            onChange={(e) =>
-                              setKetPenjemput((prev) => ({
-                                ...prev,
-                                [anak.id]: e.target.value,
-                              }))
-                            }
-                          />
-                          <button
-                            onClick={() => handlePulang(anak)}
-                            className="w-full mt-2 bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-500 active:scale-[0.98] transition-all text-sm flex items-center justify-center gap-2 shadow-[0_8px_20px_-6px_rgba(79,70,229,0.4)]"
-                          >
-                            <Home
-                              theme="outline"
-                              size={18}
-                              strokeWidth={4}
-                              fill="currentColor"
-                            />{" "}
-                            <span>Pulangkan & Kirim Notif</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                  ))}
                 </div>
               )}
 
+              {/* TAB: KEUANGAN SPP */}
               {tabAktif === "keuangan" && (
                 <div className="space-y-4">
-                  <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-2">
+                  <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-4">
                     Status SPP
                   </h2>
-                  <SearchBar />
                   <div className="mb-6 slide-up">
                     <button
                       onClick={handleResetDanTagihSppMassal}
@@ -1241,7 +1329,7 @@ export default function AppTK() {
                       return (
                         <div
                           key={anak.id}
-                          className="bg-white p-4 rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 flex items-center justify-between slide-up"
+                          className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between slide-up"
                           style={{ animationDelay: `${i * 0.05}s` }}
                         >
                           <div className="flex items-center gap-4">
@@ -1255,7 +1343,7 @@ export default function AppTK() {
                               </span>
                               <button
                                 onClick={() => bukaChatPersonal(anak)}
-                                className="flex items-center gap-1 text-[10px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors"
+                                className="flex items-center gap-1 text-[10px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100"
                               >
                                 <MailOpen size={12} /> Japri Ortu
                               </button>
@@ -1263,11 +1351,7 @@ export default function AppTK() {
                           </div>
                           <button
                             onClick={() => toggleSpp(anak.id, statusSpp)}
-                            className={`px-5 py-2.5 rounded-xl font-extrabold text-[11px] transition-all active:scale-95 border-2 ${
-                              statusSpp === "LUNAS"
-                                ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                                : "bg-rose-50 text-rose-600 border-rose-100"
-                            }`}
+                            className={`px-5 py-2.5 rounded-xl font-extrabold text-[11px] transition-all active:scale-95 border-2 ${statusSpp === "LUNAS" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-rose-50 text-rose-600 border-rose-100"}`}
                           >
                             {statusSpp === "LUNAS" ? "LUNAS" : "MENUNGGAK"}
                           </button>
@@ -1278,12 +1362,12 @@ export default function AppTK() {
                 </div>
               )}
 
+              {/* TAB: LAPORAN */}
               {tabAktif === "laporan" && (
                 <div className="space-y-6">
                   <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-2">
                     Laporan 7 Hari Terakhir
                   </h2>
-                  <SearchBar />
                   {isLoadingLaporan ? (
                     <div className="flex justify-center items-center py-12">
                       <Loading
@@ -1311,7 +1395,7 @@ export default function AppTK() {
                       .map((tgl) => (
                         <div
                           key={tgl}
-                          className="bg-white p-5 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0.04)] border border-slate-100 mb-4 slide-up"
+                          className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 mb-4 slide-up"
                         >
                           <h3 className="font-extrabold text-indigo-700 text-xs mb-4 bg-indigo-50 inline-block px-3 py-1.5 rounded-lg uppercase tracking-wider">
                             {new Date(tgl).toLocaleDateString("id-ID", {
@@ -1322,51 +1406,43 @@ export default function AppTK() {
                             })}
                           </h3>
                           <div className="space-y-3">
-                            {dataLaporan[tgl]
-                              .filter(
-                                (h) =>
-                                  !cariMurid ||
-                                  h.murid_nama
-                                    .toLowerCase()
-                                    .includes(cariMurid.toLowerCase().trim()),
-                              )
-                              .map((h: any) => (
-                                <div
-                                  key={h.id}
-                                  className="flex justify-between items-center p-3 bg-slate-50 rounded-2xl border border-slate-100"
-                                >
-                                  <div>
-                                    <span className="font-bold text-slate-800 text-sm block">
-                                      {h.murid_nama}
-                                    </span>
-                                    <span className="text-[10px] font-extrabold text-slate-400">
-                                      Total Kegiatan: {h.total_kegiatan} Jurnal
-                                    </span>
-                                  </div>
-                                  <div className="text-right">
-                                    <span className="block text-[11px] font-bold text-emerald-600">
-                                      Masuk:{" "}
-                                      {new Date(
-                                        h.waktu_datang,
-                                      ).toLocaleTimeString("id-ID", {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </span>
-                                    <span className="block text-[11px] font-bold text-rose-600">
-                                      Keluar:{" "}
-                                      {h.waktu_pulang
-                                        ? new Date(
-                                            h.waktu_pulang,
-                                          ).toLocaleTimeString("id-ID", {
-                                            hour: "2-digit",
-                                            minute: "2-digit",
-                                          })
-                                        : "Belum"}
-                                    </span>
-                                  </div>
+                            {dataLaporan[tgl].map((h: any) => (
+                              <div
+                                key={h.id}
+                                className="flex justify-between items-center p-3 bg-slate-50 rounded-2xl border border-slate-100"
+                              >
+                                <div>
+                                  <span className="font-bold text-slate-800 text-sm block">
+                                    {h.murid_nama}
+                                  </span>
+                                  <span className="text-[10px] font-extrabold text-slate-400">
+                                    Total Kegiatan: {h.total_kegiatan} Jurnal
+                                  </span>
                                 </div>
-                              ))}
+                                <div className="text-right">
+                                  <span className="block text-[11px] font-bold text-emerald-600">
+                                    Masuk:{" "}
+                                    {new Date(
+                                      h.waktu_datang,
+                                    ).toLocaleTimeString("id-ID", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                  <span className="block text-[11px] font-bold text-rose-600">
+                                    Keluar:{" "}
+                                    {h.waktu_pulang
+                                      ? new Date(
+                                          h.waktu_pulang,
+                                        ).toLocaleTimeString("id-ID", {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })
+                                      : "Belum"}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))
@@ -1375,7 +1451,7 @@ export default function AppTK() {
               )}
             </div>
 
-            {/* Modal Chat Personal */}
+            {/* MODAL CHAT PERSONAL 1:1 */}
             {chatPersonalAktif && (
               <div className="absolute inset-0 z-50 bg-slate-900/50 backdrop-blur-[4px] flex items-end justify-center sm:items-center sm:p-4 fade-in">
                 <div className="bg-white w-full rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl flex flex-col h-[75vh] sm:h-auto sm:max-h-[90vh] slide-up">
@@ -1390,7 +1466,7 @@ export default function AppTK() {
                         strokeWidth={4}
                         fill="currentColor"
                       />{" "}
-                      Chat Ortu: {chatPersonalAktif.nama}
+                      Chat: {chatPersonalAktif.nama}
                     </h2>
                     <button
                       onClick={() => setChatPersonalAktif(null)}
@@ -1435,17 +1511,23 @@ export default function AppTK() {
               </div>
             )}
 
+            {/* FAB BROADCAST WARNA MERAH & ICON MEGAFON/SPEAKER */}
             <button
               onClick={() => {
                 getaranHalus();
                 setBukaSiaran(true);
               }}
-              className="absolute bottom-[100px] right-6 bg-slate-900 text-white w-14 h-14 rounded-full shadow-[0_10px_25px_rgba(15,23,42,0.4)] hover:bg-slate-800 active:scale-90 z-30 transition-all flex items-center justify-center"
+              className="absolute bottom-[100px] right-6 bg-red-600 text-white w-14 h-14 rounded-full shadow-[0_10px_25px_rgba(220,38,38,0.4)] hover:bg-red-700 active:scale-90 z-30 transition-all flex items-center justify-center"
             >
-              <Speaker theme="filled" size={24} fill="#fff" />
+              <VolumeNotice
+                theme="outline"
+                size={26}
+                strokeWidth={3}
+                fill="#fff"
+              />
             </button>
 
-            {/* Modal Siaran */}
+            {/* MODAL SIARAN WA */}
             {bukaSiaran && (
               <div className="absolute inset-0 z-50 bg-slate-900/50 backdrop-blur-[4px] flex items-end justify-center sm:items-center sm:p-4 fade-in">
                 <div className="bg-white w-full rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl flex flex-col h-[85vh] sm:h-auto sm:max-h-[90vh] slide-up">
@@ -1454,7 +1536,7 @@ export default function AppTK() {
                   </div>
                   <div className="px-6 py-5 flex justify-between items-center border-b border-slate-100">
                     <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
-                      <Speaker
+                      <VolumeNotice
                         theme="outline"
                         size={24}
                         strokeWidth={4}
@@ -1485,11 +1567,7 @@ export default function AppTK() {
                           setTipeSiaran("umum");
                           setTeksSiaran(TEMPLATE_PESAN.umum);
                         }}
-                        className={`px-5 py-3 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border-2 ${
-                          tipeSiaran === "umum"
-                            ? "bg-indigo-50 border-indigo-400 text-indigo-700"
-                            : "bg-white border-slate-100 text-slate-500"
-                        }`}
+                        className={`px-5 py-3 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border-2 ${tipeSiaran === "umum" ? "bg-indigo-50 border-indigo-400 text-indigo-700" : "bg-white border-slate-100 text-slate-500"}`}
                       >
                         Info Umum
                       </button>
@@ -1499,27 +1577,9 @@ export default function AppTK() {
                           setTipeSiaran("spp");
                           setTeksSiaran(TEMPLATE_PESAN.spp);
                         }}
-                        className={`px-5 py-3 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border-2 ${
-                          tipeSiaran === "spp"
-                            ? "bg-indigo-50 border-indigo-400 text-indigo-700"
-                            : "bg-white border-slate-100 text-slate-500"
-                        }`}
+                        className={`px-5 py-3 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border-2 ${tipeSiaran === "spp" ? "bg-indigo-50 border-indigo-400 text-indigo-700" : "bg-white border-slate-100 text-slate-500"}`}
                       >
                         Tagihan SPP
-                      </button>
-                      <button
-                        onClick={() => {
-                          getaranHalus();
-                          setTipeSiaran("bekal");
-                          setTeksSiaran(TEMPLATE_PESAN.bekal);
-                        }}
-                        className={`px-5 py-3 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border-2 ${
-                          tipeSiaran === "bekal"
-                            ? "bg-indigo-50 border-indigo-400 text-indigo-700"
-                            : "bg-white border-slate-100 text-slate-500"
-                        }`}
-                      >
-                        Kebutuhan Anak
                       </button>
                     </div>
                     <textarea
@@ -1544,7 +1604,7 @@ export default function AppTK() {
               </div>
             )}
 
-            {/* Bottom Navigation */}
+            {/* BOTTOM NAVIGATION BARS */}
             <div className="absolute bottom-4 left-4 right-4 z-40 bg-white/95 backdrop-blur-xl border border-slate-200/60 p-2 rounded-3xl shadow-[0_15px_40px_-10px_rgba(0,0,0,0.1)] flex justify-between gap-1 overflow-x-auto hide-scrollbar">
               <button
                 onClick={() => {
