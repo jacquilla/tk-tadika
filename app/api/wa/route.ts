@@ -3,14 +3,21 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { targetHp, pesanCustom } = body; // Sekarang kurir menerima pesan utuh
 
-    // Token Fonnte kamu
-    const TOKEN_FONNTE = "5vzpjJG47YMsDvgNEcDG";
+    // Tambahkan variabel penangkap url gambar dari frontend (jika ada)
+    const { targetHp, pesanCustom, urlGambar } = body;
+
+    // Mengambil token dari file .env.local Anda
+    const TOKEN_FONNTE = process.env.FONNTE_TOKEN || "";
 
     const formData = new FormData();
     formData.append("target", String(targetHp));
-    formData.append("message", pesanCustom); // Memasukkan pesan rangkuman
+    formData.append("message", pesanCustom);
+
+    // Jika frontend mengirimkan link gambar (hasil upload Drive), tambahkan ke Fonnte
+    if (urlGambar) {
+      formData.append("url", urlGambar);
+    }
 
     const response = await fetch("https://api.fonnte.com/send", {
       method: "POST",

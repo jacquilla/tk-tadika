@@ -1,44 +1,68 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { google } from "googleapis";
+import sharp from "sharp";
 
-export async function POST(request: NextRequest) {
+const SCOPES = ["https://www.googleapis.com/auth/drive.file"];
+
+// Buat OAuth2 client
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_DRIVE_CLIENT_ID,
+  process.env.GOOGLE_DRIVE_CLIENT_SECRET,
+  "http://localhost", // Redirect URI tidak penting untuk refresh token
+);
+
+// Set refresh token
+oauth2Client.setCredentials({
+  refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN,
+});
+
+export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+    if (!file)
+      return NextResponse.json({ error: "Tidak ada file" }, { status: 400 });
 
-    // Tambahkan variabel penangkap url gambar dari frontend (jika ada)
-    const { targetHp, pesanCustom, urlGambar } = body;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const compressed = await sharp(buffer)
+      .resize({ width: 800, withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
 
-    // Mengambil token dari file .env.local Anda
-    const TOKEN_FONNTE = process.env.FONNTE_TOKEN || "";
+    // Gunakan oauth2Client langsung
+    const drive = google.drive({ version: "v3", auth: oauth2Client });
 
-    const formData = new FormData();
-    formData.append("target", String(targetHp));
-    formData.append("message", pesanCustom);
+    const fileMetadata = {
+      name: `TK-${Date.now()}.jpg`,
+      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID!],
+    };
 
-    // Jika frontend mengirimkan link gambar (hasil upload Drive), tambahkan ke Fonnte
-    if (urlGambar) {
-      formData.append("url", urlGambar);
-    }
+    const media = {
+      mimeType: "image/jpeg",
+      body: require("stream").Readable.from(compressed),
+    };
 
-    const response = await fetch("https://api.fonnte.com/send", {
-      method: "POST",
-      headers: { Authorization: TOKEN_FONNTE },
-      body: formData,
+    const createdFile = await drive.files.create({
+      requestBody: fileMetadata,
+      media: media,
+      fields: "id",
     });
 
-    const result = await response.json();
+    const fileId = createdFile.data.id!;
 
-    if (result.status === true) {
-      return NextResponse.json({ success: true, detail: result });
-    } else {
-      return NextResponse.json(
-        { success: false, pesan: result.reason || "Ditolak Fonnte" },
-        { status: 400 },
-      );
-    }
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, pesan: "Server Error" },
-      { status: 500 },
-    );
+    // Jadikan file publik
+    await drive.permissions.create({
+      fileId: fileId,
+      requestBody: {
+        role: "reader",
+        type: "anyone",
+      },
+    });
+
+    const imageUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+    return NextResponse.json({ success: true, imageUrl });
+  } catch (error: any) {
+    console.error("Upload error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
