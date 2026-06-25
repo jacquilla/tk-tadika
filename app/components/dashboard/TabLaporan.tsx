@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -8,11 +9,11 @@ import {
 interface Props {
   subTabLaporan: "harian" | "mingguan";
   onSubTabChange: (sub: "harian" | "mingguan") => void;
-  kehadiranHarian: Record<string, any>;
   muridSemuaFilter: any[];
   selectedStudentReport: any;
   onSelectStudent: (anak: any) => void;
   statusAnak: Record<string, string>;
+  kehadiranHarian: Record<string, any>;
   logKegiatan: Record<string, any[]>;
   statusDailySheetHarian: Record<string, any>;
   weeklyOffset: number;
@@ -27,7 +28,7 @@ interface Props {
     mondayDate: Date;
     sundayDate: Date;
   };
-  logHarian: Record<string, any[]>; // ← BARU
+  logHarian: Record<string, any[]>;
 }
 
 export default function TabLaporan({
@@ -47,8 +48,11 @@ export default function TabLaporan({
   isLoadingWeekly,
   renderFoto,
   getWeekRange,
-  logHarian, // ← BARU
+  logHarian,
 }: Props) {
+  // State lokal untuk menyimpan ID anak yang sedang diexpand (harian)
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   return (
     <div className="space-y-6">
       <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-2">
@@ -57,151 +61,156 @@ export default function TabLaporan({
       <div className="flex gap-2 bg-slate-100/80 p-1 rounded-2xl mb-4">
         <button
           onClick={() => onSubTabChange("harian")}
-          className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${subTabLaporan === "harian" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500"}`}
+          className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${
+            subTabLaporan === "harian"
+              ? "bg-white text-indigo-600 shadow-sm"
+              : "text-slate-500"
+          }`}
         >
           Harian
         </button>
         <button
           onClick={() => onSubTabChange("mingguan")}
-          className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${subTabLaporan === "mingguan" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500"}`}
+          className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${
+            subTabLaporan === "mingguan"
+              ? "bg-white text-indigo-600 shadow-sm"
+              : "text-slate-500"
+          }`}
         >
           Mingguan
         </button>
       </div>
 
+      {/* ========== HARIAN ========== */}
       {subTabLaporan === "harian" && (
         <>
           <p className="text-xs font-bold text-slate-500">
             Klik anak untuk melihat laporan hari ini
           </p>
           <div className="space-y-3">
-            {muridSemuaFilter.map((anak) => (
-              <button
-                key={anak.id}
-                onClick={() => onSelectStudent(anak)}
-                className="w-full bg-white/80 backdrop-blur p-4 rounded-2xl shadow-sm border border-white/60 flex items-center justify-between active:scale-[0.98] transition-all"
-              >
-                <div className="flex items-center gap-4">
-                  {renderFoto(
-                    anak,
-                    "w-12 h-12 rounded-xl object-cover border border-slate-100",
-                  )}
-                  <span className="font-bold text-slate-800 text-sm">
-                    {anak.nama}
-                  </span>
-                </div>
-                <ArrowRightIcon
-                  theme="outline"
-                  size={20}
-                  className="text-slate-400"
-                />
-              </button>
-            ))}
-          </div>
-          {selectedStudentReport && (
-            <div className="mt-4 p-5 bg-white/90 backdrop-blur rounded-[2rem] shadow-md border border-white/60 slide-up">
-              <h3 className="font-extrabold text-indigo-700 text-base mb-3">
-                Laporan Hari Ini: {selectedStudentReport.nama}
-              </h3>
-              <div className="space-y-2 text-xs text-slate-700">
-                <p>
-                  <span className="font-bold">Status:</span>{" "}
-                  {statusAnak[selectedStudentReport.id] === "hadir"
-                    ? "Hadir"
-                    : statusAnak[selectedStudentReport.id] === "pulang"
-                      ? "Sudah Pulang"
-                      : "Belum Hadir"}
-                </p>
-                {kehadiranHarian[selectedStudentReport.id] && (
-                  <>
-                    <p>
-                      <span className="font-bold">Datang:</span>{" "}
-                      {kehadiranHarian[selectedStudentReport.id].waktu_datang
-                        ? new Date(
-                            kehadiranHarian[selectedStudentReport.id]
-                              .waktu_datang,
-                          ).toLocaleTimeString("id-ID", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "-"}
-                    </p>
-                    <p>
-                      <span className="font-bold">Pulang:</span>{" "}
-                      {kehadiranHarian[selectedStudentReport.id].waktu_pulang
-                        ? new Date(
-                            kehadiranHarian[selectedStudentReport.id]
-                              .waktu_pulang,
-                          ).toLocaleTimeString("id-ID", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "-"}
-                    </p>
-                  </>
-                )}{" "}
-                {logHarian[selectedStudentReport.id] && (
-                  <div>
-                    <span className="font-bold">Aktivitas:</span>
-                    <ul className="list-disc pl-5 mt-1">
-                      {logHarian[selectedStudentReport.id].map(
-                        (log: any, idx: number) => (
-                          <li key={idx}>
-                            [
-                            {new Date(log.created_at).toLocaleTimeString(
-                              "id-ID",
-                              { hour: "2-digit", minute: "2-digit" },
-                            )}
-                            ] {log.deskripsi}
-                          </li>
-                        ),
+            {muridSemuaFilter.map((anak) => {
+              const isExpanded = expandedId === anak.id;
+              return (
+                <div
+                  key={anak.id}
+                  className="bg-white/80 backdrop-blur rounded-2xl shadow-sm border border-white/60 overflow-hidden transition-all"
+                >
+                  {/* Tombol utama */}
+                  <button
+                    onClick={() => {
+                      setExpandedId(isExpanded ? null : anak.id);
+                      onSelectStudent(anak);
+                    }}
+                    className="w-full p-4 flex items-center justify-between active:scale-[0.98] transition-all"
+                  >
+                    <div className="flex items-center gap-4">
+                      {renderFoto(
+                        anak,
+                        "w-12 h-12 rounded-xl object-cover border border-slate-100",
                       )}
-                    </ul>
-                  </div>
-                )}
-                {statusDailySheetHarian[selectedStudentReport.id] && (
-                  <div>
-                    <span className="font-bold">Daily Sheet:</span>
-                    <div className="flex gap-3 mt-1">
-                      {statusDailySheetHarian[selectedStudentReport.id]
-                        .makan && (
-                        <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-lg text-[10px] font-bold">
-                          🍱{" "}
-                          {
-                            statusDailySheetHarian[selectedStudentReport.id]
-                              .makan
-                          }
-                        </span>
-                      )}
-                      {statusDailySheetHarian[selectedStudentReport.id]
-                        .tidur && (
-                        <span className="bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-[10px] font-bold">
-                          💤{" "}
-                          {
-                            statusDailySheetHarian[selectedStudentReport.id]
-                              .tidur
-                          }
-                        </span>
-                      )}
-                      {statusDailySheetHarian[selectedStudentReport.id]
-                        .mood && (
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-lg text-[10px] font-bold">
-                          😊{" "}
-                          {
-                            statusDailySheetHarian[selectedStudentReport.id]
-                              .mood
-                          }
-                        </span>
-                      )}
+                      <span className="font-bold text-slate-800 text-sm">
+                        {anak.nama}
+                      </span>
                     </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+                    <ArrowRightIcon
+                      theme="outline"
+                      size={20}
+                      className={`text-slate-400 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                    />
+                  </button>
+
+                  {/* Detail laporan harian (muncul di bawah nama) */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 slide-up">
+                      <div className="p-4 bg-slate-50/80 rounded-2xl space-y-2 text-xs text-slate-700">
+                        <p>
+                          <span className="font-bold">Status:</span>{" "}
+                          {statusAnak[anak.id] === "hadir"
+                            ? "Hadir"
+                            : statusAnak[anak.id] === "pulang"
+                              ? "Sudah Pulang"
+                              : "Belum Hadir"}
+                        </p>
+                        {kehadiranHarian[anak.id] && (
+                          <>
+                            <p>
+                              <span className="font-bold">Datang:</span>{" "}
+                              {kehadiranHarian[anak.id].waktu_datang
+                                ? new Date(
+                                    kehadiranHarian[anak.id].waktu_datang,
+                                  ).toLocaleTimeString("id-ID", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                : "-"}
+                            </p>
+                            <p>
+                              <span className="font-bold">Pulang:</span>{" "}
+                              {kehadiranHarian[anak.id].waktu_pulang
+                                ? new Date(
+                                    kehadiranHarian[anak.id].waktu_pulang,
+                                  ).toLocaleTimeString("id-ID", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                : "-"}
+                            </p>
+                          </>
+                        )}
+                        {logHarian[anak.id] && (
+                          <div>
+                            <span className="font-bold">Aktivitas:</span>
+                            <ul className="list-disc pl-5 mt-1">
+                              {logHarian[anak.id].map(
+                                (log: any, idx: number) => (
+                                  <li key={idx}>
+                                    [
+                                    {new Date(
+                                      log.created_at,
+                                    ).toLocaleTimeString("id-ID", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                    ] {log.deskripsi}
+                                  </li>
+                                ),
+                              )}
+                            </ul>
+                          </div>
+                        )}
+                        {statusDailySheetHarian[anak.id] && (
+                          <div>
+                            <span className="font-bold">Daily Sheet:</span>
+                            <div className="flex gap-2 mt-1 flex-wrap">
+                              {statusDailySheetHarian[anak.id].makan && (
+                                <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-lg text-[10px] font-bold">
+                                  🍱 {statusDailySheetHarian[anak.id].makan}
+                                </span>
+                              )}
+                              {statusDailySheetHarian[anak.id].tidur && (
+                                <span className="bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-[10px] font-bold">
+                                  💤 {statusDailySheetHarian[anak.id].tidur}
+                                </span>
+                              )}
+                              {statusDailySheetHarian[anak.id].mood && (
+                                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-lg text-[10px] font-bold">
+                                  😊 {statusDailySheetHarian[anak.id].mood}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </>
       )}
 
+      {/* ========== MINGGUAN ========== */}
       {subTabLaporan === "mingguan" && (
         <>
           <div className="flex items-center justify-between mb-4">
@@ -284,7 +293,14 @@ export default function TabLaporan({
                             {hari}
                           </span>
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${data.hadir ? (data.hadir.status_hadir === "hadir" || data.hadir.status_hadir === "pulang" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700") : "bg-slate-200 text-slate-600"}`}
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
+                              data.hadir
+                                ? data.hadir.status_hadir === "hadir" ||
+                                  data.hadir.status_hadir === "pulang"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-rose-100 text-rose-700"
+                                : "bg-slate-200 text-slate-600"
+                            }`}
                           >
                             {data.hadir
                               ? data.hadir.status_hadir === "pulang"
