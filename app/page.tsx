@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { VolumeNotice } from "@icon-park/react";
 
 import LoginScreen from "./components/LoginScreen";
@@ -9,7 +8,6 @@ import DashboardHeader from "./components/dashboard/DashboardHeader";
 import TabDatang from "./components/dashboard/TabDatang";
 import TabKegiatan from "./components/dashboard/TabKegiatan";
 import TabPulang from "./components/dashboard/TabPulang";
-import TabKeuangan from "./components/dashboard/TabKeuangan";
 import TabLaporan from "./components/dashboard/TabLaporan";
 import BottomNav from "./components/BottomNav";
 import SearchBar from "./components/SearchBar";
@@ -40,6 +38,13 @@ const getTanggalLokal = () => {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().split("T")[0];
+};
+
+const getAwalHariWITA = () => {
+  // WITA = UTC+8, jadi awal hari WITA = (hari ini UTC) - 8 jam
+  const d = new Date();
+  d.setHours(d.getHours() + 8, 0, 0, 0); // set ke 00:00 WITA, lalu konversi ke UTC
+  return d.toISOString();
 };
 
 const getMulaiHariIniUTC = () => {
@@ -83,17 +88,17 @@ export default function AppTK() {
   const [isSaving, setIsSaving] = useState(false);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
 
-  const [statusSppDinamis, setStatusSppDinamis] = useState<
-    Record<string, string>
-  >({});
-  const [isResettingSpp, setIsResettingSpp] = useState(false);
   const [statusAnak, setStatusAnak] = useState<Record<string, string>>({});
+  const [kehadiranHarian, setKehadiranHarian] = useState<Record<string, any>>(
+    {},
+  );
 
   const [statusDailySheetHarian, setStatusDailySheetHarian] = useState<
     Record<string, any>
   >({});
 
   const [logKegiatan, setLogKegiatan] = useState<Record<string, any[]>>({});
+  const [logHarian, setLogHarian] = useState<Record<string, any[]>>({});
   const [pilihanAnak, setPilihanAnak] = useState<string[]>([]);
   const [jenisKegiatan, setJenisKegiatan] = useState("");
 
@@ -111,16 +116,6 @@ export default function AppTK() {
     Record<string, string>
   >({});
   const [ketPenjemput, setKetPenjemput] = useState<Record<string, string>>({});
-
-  const [showUploadObj, setShowUploadObj] = useState<Record<string, boolean>>(
-    {},
-  );
-  const [strukFileObj, setStrukFileObj] = useState<Record<string, File | null>>(
-    {},
-  );
-  const [isUploadingStrukObj, setIsUploadingStrukObj] = useState<
-    Record<string, boolean>
-  >({});
 
   const [bukaSiaran, setBukaSiaran] = useState(false);
   const [tipeSiaran, setTipeSiaran] = useState("umum");
@@ -186,13 +181,14 @@ export default function AppTK() {
   useEffect(() => {
     const tarikDataAwal = async () => {
       try {
-        const { data: muridData, error } = await supabase
+        const { data: muridData, error: muridError } = await supabase
           .from("murid")
           .select("*")
           .order("nama");
-        if (error) throw error;
+        if (muridError) throw muridError;
         if (muridData) setDataSemuaMurid(muridData);
 
+        // ---------- DATA KEHADIRAN HARI INI ----------
         const hariIni = getTanggalLokal();
         const { data: hadirData, error: hadirError } = await supabase
           .from("kehadiran")
@@ -201,23 +197,27 @@ export default function AppTK() {
         if (hadirError) throw hadirError;
         if (hadirData) {
           const statusMap: Record<string, string> = {};
-          hadirData.forEach((h) => {
+          const detailMap: Record<string, any> = {};
+          hadirData.forEach((h: any) => {
             statusMap[h.murid_id] = h.status_hadir;
+            detailMap[h.murid_id] = h; // simpan seluruh data kehadiran
           });
           setStatusAnak(statusMap);
+          setKehadiranHarian(detailMap);
         }
 
-        const { data: logData, error: logError } = await supabase
+        // ---------- DATA DAILY SHEET (untuk ikon) ----------
+        const awalHariWITA = getAwalHariWITA();
+        const { data: logSheet, error: logSheetError } = await supabase
           .from("log_aktivitas")
           .select("murid_id, metadata")
           .eq("kategori", "DailySheet")
-          .gte("created_at", hariIni);
-        if (!logError && logData) {
+          .gte("created_at", awalHariWITA);
+
+        if (!logSheetError && logSheet) {
           const sheetMap: Record<string, any> = {};
-          logData.forEach((l) => {
-            if (!sheetMap[l.murid_id]) {
-              sheetMap[l.murid_id] = { foto_url: "" };
-            }
+          logSheet.forEach((l: any) => {
+            if (!sheetMap[l.murid_id]) sheetMap[l.murid_id] = { foto_url: "" };
             sheetMap[l.murid_id] = {
               ...sheetMap[l.murid_id],
               ...(l.metadata || {}),
@@ -229,6 +229,21 @@ export default function AppTK() {
             }
           });
           setStatusDailySheetHarian(sheetMap);
+        }
+
+        // ---------- SEMUA LOG HARI INI (untuk laporan harian) ----------
+        const { data: logHarianData, error: logHarianError } = await supabase
+          .from("log_aktivitas")
+          .select("*")
+          .gte("created_at", awalHariWITA);
+
+        if (logHarianData) {
+          const logMap: Record<string, any[]> = {};
+          logHarianData.forEach((l: any) => {
+            if (!logMap[l.murid_id]) logMap[l.murid_id] = [];
+            logMap[l.murid_id].push(l);
+          });
+          setLogHarian(logMap);
         }
       } catch (err) {
         console.error("Gagal mengambil data awal:", err);
@@ -282,8 +297,6 @@ export default function AppTK() {
     if (typeof window !== "undefined" && navigator.vibrate)
       navigator.vibrate(50);
   };
-  const dapatkanStatusSpp = (anak: any) =>
-    statusSppDinamis[anak.id] || anak.status_spp || "LUNAS";
 
   const handleLogin = async () => {
     if (!pinLogin.trim()) {
@@ -314,58 +327,6 @@ export default function AppTK() {
   };
 
   // ---------- FUNGSI BISNIS ----------
-  const toggleSpp = async (idAnak: string, statusSaatIni: string) => {
-    getaranHalus();
-    const statusBaru = statusSaatIni === "LUNAS" ? "MENUNGGAK" : "LUNAS";
-    setStatusSppDinamis((prev) => ({ ...prev, [idAnak]: statusBaru }));
-    try {
-      await supabase
-        .from("murid")
-        .update({ status_spp: statusBaru })
-        .eq("id", idAnak);
-    } catch (err) {
-      alert("Gagal mengubah status SPP.");
-    }
-  };
-
-  const handleResetDanTagihSppMassal = async () => {
-    getaranHalus();
-    if (
-      !confirm(
-        "PENTING!\nTindakan ini akan mengubah status SPP semua murid di kelas ini menjadi MENUNGGAK, lalu otomatis mengirim pesan WA tagihan kepada mereka.\n\nLanjutkan?",
-      )
-    )
-      return;
-    setIsResettingSpp(true);
-    try {
-      const muridIds = muridSemua.map((m) => m.id);
-      const { error } = await supabase
-        .from("murid")
-        .update({ status_spp: "MENUNGGAK" })
-        .in("id", muridIds);
-      if (error) throw error;
-      const newStatus = { ...statusSppDinamis };
-      muridIds.forEach((id) => (newStatus[id] = "MENUNGGAK"));
-      setStatusSppDinamis(newStatus);
-      let countTerkirim = 0;
-      for (const anak of muridSemua) {
-        await kirimWA(
-          anak.nomor_hp_ortu,
-          `📢 *INFO ADMINISTRASI KELAS*\n\n${TEMPLATE_PESAN.spp}`,
-        );
-        countTerkirim++;
-        await new Promise((res) => setTimeout(res, 500));
-      }
-      alert(
-        `Berhasil mereset tagihan dan mengirim ${countTerkirim} pesan SPP!`,
-      );
-    } catch (error) {
-      alert("Terjadi kesalahan saat memproses tagihan massal.");
-    } finally {
-      setIsResettingSpp(false);
-    }
-  };
-
   const catatKegiatan = async (
     idAnak: string,
     teksKegiatan: string,
@@ -659,19 +620,8 @@ export default function AppTK() {
     if (!teksSiaran.trim()) return alert("Pesan tidak boleh kosong!");
     setIsBroadcasting(true);
     try {
-      let targetPenerima = muridSemua;
-      if (tipeSiaran === "spp") {
-        targetPenerima = muridSemua.filter(
-          (anak) => dapatkanStatusSpp(anak) === "MENUNGGAK",
-        );
-        if (targetPenerima.length === 0) {
-          alert("Semua orang tua di kelas ini sudah lunas SPP.");
-          setIsBroadcasting(false);
-          setBukaSiaran(false);
-          return;
-        }
-      }
-      for (const anak of targetPenerima) {
+      // Broadcast hanya info umum, target semua murid di kelas
+      for (const anak of muridSemua) {
         await kirimWA(
           anak.nomor_hp_ortu,
           `📢 *PENGUMUMAN KELAS*\n\n${teksSiaran}`,
@@ -703,7 +653,8 @@ export default function AppTK() {
         .from("log_aktivitas")
         .select("*")
         .eq("murid_id", anak.id)
-        .gte("created_at", getMulaiHariIniUTC());
+        .gte("created_at", new Date(`${start}T00:00:00+08:00`).toISOString())
+        .lte("created_at", new Date(`${end}T23:59:59+08:00`).toISOString());
       if (logError) throw logError;
       const dailyMap: Record<string, any> = {};
       for (
@@ -868,24 +819,6 @@ export default function AppTK() {
                     renderFoto={renderFotoMurid}
                   />
                 )}
-                {tabAktif === "keuangan" && (
-                  <TabKeuangan
-                    muridSemuaFilter={muridSemuaFilter}
-                    dapatkanStatusSpp={dapatkanStatusSpp}
-                    handleResetDanTagihSppMassal={handleResetDanTagihSppMassal}
-                    isResettingSpp={isResettingSpp}
-                    showUploadObj={showUploadObj}
-                    strukFileObj={strukFileObj}
-                    isUploadingStrukObj={isUploadingStrukObj}
-                    setShowUploadObj={setShowUploadObj}
-                    setStrukFileObj={setStrukFileObj}
-                    setIsUploadingStrukObj={setIsUploadingStrukObj}
-                    bukaChatPersonal={bukaChatPersonal}
-                    renderFoto={renderFotoMurid}
-                    supabase={supabase}
-                    setStatusSppDinamis={setStatusSppDinamis}
-                  />
-                )}
                 {tabAktif === "laporan" && (
                   <TabLaporan
                     subTabLaporan={subTabLaporan}
@@ -898,6 +831,7 @@ export default function AppTK() {
                       )
                     }
                     statusAnak={statusAnak}
+                    kehadiranHarian={kehadiranHarian}
                     logKegiatan={logKegiatan}
                     statusDailySheetHarian={statusDailySheetHarian}
                     weeklyOffset={weeklyOffset}
@@ -907,6 +841,7 @@ export default function AppTK() {
                     isLoadingWeekly={isLoadingWeekly}
                     renderFoto={renderFotoMurid}
                     getWeekRange={getWeekRange}
+                    logHarian={logHarian}
                   />
                 )}
               </div>

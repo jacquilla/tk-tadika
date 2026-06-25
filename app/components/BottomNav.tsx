@@ -9,7 +9,6 @@ const tabs = [
   { id: "datang", label: "Tiba", icon: CheckOne },
   { id: "kegiatan", label: "Aktivitas", icon: Box },
   { id: "pulang", label: "Pulang", icon: Logout },
-  { id: "keuangan", label: "SPP", icon: BankCard },
   { id: "laporan", label: "Laporan", icon: ChartLine },
 ];
 

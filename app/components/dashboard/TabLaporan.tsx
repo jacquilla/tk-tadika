@@ -8,6 +8,7 @@ import {
 interface Props {
   subTabLaporan: "harian" | "mingguan";
   onSubTabChange: (sub: "harian" | "mingguan") => void;
+  kehadiranHarian: Record<string, any>;
   muridSemuaFilter: any[];
   selectedStudentReport: any;
   onSelectStudent: (anak: any) => void;
@@ -26,6 +27,7 @@ interface Props {
     mondayDate: Date;
     sundayDate: Date;
   };
+  logHarian: Record<string, any[]>; // ← BARU
 }
 
 export default function TabLaporan({
@@ -35,6 +37,7 @@ export default function TabLaporan({
   selectedStudentReport,
   onSelectStudent,
   statusAnak,
+  kehadiranHarian,
   logKegiatan,
   statusDailySheetHarian,
   weeklyOffset,
@@ -44,6 +47,7 @@ export default function TabLaporan({
   isLoadingWeekly,
   renderFoto,
   getWeekRange,
+  logHarian, // ← BARU
 }: Props) {
   return (
     <div className="space-y-6">
@@ -108,12 +112,15 @@ export default function TabLaporan({
                       ? "Sudah Pulang"
                       : "Belum Hadir"}
                 </p>
-                {statusAnak[selectedStudentReport.id] && (
+                {kehadiranHarian[selectedStudentReport.id] && (
                   <>
                     <p>
                       <span className="font-bold">Datang:</span>{" "}
-                      {statusAnak[selectedStudentReport.id] !== "belum"
-                        ? new Date().toLocaleTimeString("id-ID", {
+                      {kehadiranHarian[selectedStudentReport.id].waktu_datang
+                        ? new Date(
+                            kehadiranHarian[selectedStudentReport.id]
+                              .waktu_datang,
+                          ).toLocaleTimeString("id-ID", {
                             hour: "2-digit",
                             minute: "2-digit",
                           })
@@ -121,23 +128,31 @@ export default function TabLaporan({
                     </p>
                     <p>
                       <span className="font-bold">Pulang:</span>{" "}
-                      {statusAnak[selectedStudentReport.id] === "pulang"
-                        ? new Date().toLocaleTimeString("id-ID", {
+                      {kehadiranHarian[selectedStudentReport.id].waktu_pulang
+                        ? new Date(
+                            kehadiranHarian[selectedStudentReport.id]
+                              .waktu_pulang,
+                          ).toLocaleTimeString("id-ID", {
                             hour: "2-digit",
                             minute: "2-digit",
                           })
                         : "-"}
                     </p>
                   </>
-                )}
-                {logKegiatan[selectedStudentReport.id] && (
+                )}{" "}
+                {logHarian[selectedStudentReport.id] && (
                   <div>
                     <span className="font-bold">Aktivitas:</span>
                     <ul className="list-disc pl-5 mt-1">
-                      {logKegiatan[selectedStudentReport.id].map(
+                      {logHarian[selectedStudentReport.id].map(
                         (log: any, idx: number) => (
                           <li key={idx}>
-                            [{log.waktu}] {log.teks}
+                            [
+                            {new Date(log.created_at).toLocaleTimeString(
+                              "id-ID",
+                              { hour: "2-digit", minute: "2-digit" },
+                            )}
+                            ] {log.deskripsi}
                           </li>
                         ),
                       )}
