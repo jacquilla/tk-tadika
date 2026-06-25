@@ -16,9 +16,7 @@ import SearchBar from "./components/SearchBar";
 import ChatModal from "./components/modals/ChatModal";
 import BroadcastModal from "./components/modals/BroadcastModal";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from "./lib/supabase";
 
 const TEMPLATE_PESAN = {
   umum:
@@ -44,6 +42,12 @@ const getTanggalLokal = () => {
   return d.toISOString().split("T")[0];
 };
 
+const getMulaiHariIniUTC = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+};
+
 const getWeekRange = (offset: number = 0) => {
   const now = new Date();
   const day = now.getDay();
@@ -63,7 +67,6 @@ const getWeekRange = (offset: number = 0) => {
 };
 
 export default function AppTK() {
-  // ---------- STATE ----------
   const [tampilan, setTampilan] = useState("login");
   const [namaGuru, setNamaGuru] = useState("");
   const [pinLogin, setPinLogin] = useState("");
@@ -212,10 +215,18 @@ export default function AppTK() {
         if (!logError && logData) {
           const sheetMap: Record<string, any> = {};
           logData.forEach((l) => {
+            if (!sheetMap[l.murid_id]) {
+              sheetMap[l.murid_id] = { foto_url: "" };
+            }
             sheetMap[l.murid_id] = {
               ...sheetMap[l.murid_id],
               ...(l.metadata || {}),
             };
+            if (l.metadata?.foto_url) {
+              sheetMap[l.murid_id].foto_url = sheetMap[l.murid_id].foto_url
+                ? sheetMap[l.murid_id].foto_url + "," + l.metadata.foto_url
+                : l.metadata.foto_url;
+            }
           });
           setStatusDailySheetHarian(sheetMap);
         }
@@ -470,8 +481,6 @@ export default function AppTK() {
     };
     if (label && templates[label]) {
       setJenisKegiatan(templates[label]);
-    } else {
-      setJenisKegiatan("");
     }
   };
 
@@ -512,29 +521,53 @@ export default function AppTK() {
       }
     }
 
-    const metadataSheet = {
-      makan: dailyMakan || null,
-      tidur:
+    for (const id of pilihanAnak) {
+      const prevMeta = statusDailySheetHarian[id] || {};
+      const newMakan = dailyMakan || prevMeta.makan || null;
+      const newTidur =
         dailyTidurMulai && dailyTidurSelesai
           ? `${dailyTidurMulai} - ${dailyTidurSelesai}`
-          : null,
-      mood: dailyMood || null,
-      foto_url: uploadedImageUrl || null,
-    };
+          : prevMeta.tidur || null;
+      const newMood = dailyMood || prevMeta.mood || null;
+      const prevFoto = prevMeta.foto_url || "";
+      const newFoto = uploadedImageUrl
+        ? prevFoto
+          ? prevFoto + "," + uploadedImageUrl
+          : uploadedImageUrl
+        : prevFoto;
 
-    for (const id of pilihanAnak) {
+      const metaAnak = {
+        makan: newMakan,
+        tidur: newTidur,
+        mood: newMood,
+        foto_url: newFoto || null,
+      };
+
       await catatKegiatan(
         id,
         jenisKegiatan || "Mengikuti rutinitas kelas harian.",
         "DailySheet",
-        metadataSheet,
+        metaAnak,
       );
     }
 
     setStatusDailySheetHarian((prev) => {
       const newState = { ...prev };
       pilihanAnak.forEach((id) => {
-        newState[id] = { ...(newState[id] || {}), ...metadataSheet };
+        const prevMeta = prev[id] || {};
+        newState[id] = {
+          makan: dailyMakan || prevMeta.makan || null,
+          tidur:
+            dailyTidurMulai && dailyTidurSelesai
+              ? `${dailyTidurMulai} - ${dailyTidurSelesai}`
+              : prevMeta.tidur || null,
+          mood: dailyMood || prevMeta.mood || null,
+          foto_url: uploadedImageUrl
+            ? prevMeta.foto_url
+              ? prevMeta.foto_url + "," + uploadedImageUrl
+              : uploadedImageUrl
+            : prevMeta.foto_url || null,
+        };
       });
       return newState;
     });
@@ -593,8 +626,11 @@ export default function AppTK() {
           (dailyMeta.makan ? `🍱 Porsi Makan: *${dailyMeta.makan}*\n` : "") +
           (dailyMeta.tidur ? `💤 Tidur Siang: *${dailyMeta.tidur}*\n` : "") +
           (dailyMeta.mood ? `😊 Mood Dominan: *${dailyMeta.mood}*\n` : "") +
-          (dailyMeta.foto_url
-            ? `📸 Foto kegiatan: ${dailyMeta.foto_url}\n`
+          (dailyMeta?.foto_url
+            ? `📸 Foto kegiatan:\n${dailyMeta.foto_url
+                .split(",")
+                .map((url: string) => `- ${url}`)
+                .join("\n")}\n`
             : "");
       }
 
@@ -667,8 +703,7 @@ export default function AppTK() {
         .from("log_aktivitas")
         .select("*")
         .eq("murid_id", anak.id)
-        .gte("created_at", `${start}T00:00:00`)
-        .lte("created_at", `${end}T23:59:59`);
+        .gte("created_at", getMulaiHariIniUTC());
       if (logError) throw logError;
       const dailyMap: Record<string, any> = {};
       for (
@@ -883,6 +918,21 @@ export default function AppTK() {
                   setCariMurid("");
                 }}
               />
+              {/* FAB Broadcast – hanya muncul di dashboard */}
+              <button
+                onClick={() => {
+                  getaranHalus();
+                  setBukaSiaran(true);
+                }}
+                className="absolute bottom-[120px] right-6 bg-orange-400 text-white w-16 h-16 rounded-full shadow-[0_15px_35px_rgba(251,146,60,0.4)] hover:bg-orange-500 active:scale-90 z-40 transition-all flex items-center justify-center btn-premium"
+              >
+                <VolumeNotice
+                  theme="outline"
+                  size={30}
+                  strokeWidth={3}
+                  fill="#fff"
+                />
+              </button>
             </div>
           )}
 
@@ -913,21 +963,6 @@ export default function AppTK() {
             templateUmum={TEMPLATE_PESAN.umum}
             templateSpp={TEMPLATE_PESAN.spp}
           />
-
-          <button
-            onClick={() => {
-              getaranHalus();
-              setBukaSiaran(true);
-            }}
-            className="absolute bottom-[120px] right-6 bg-orange-400 text-white w-16 h-16 rounded-full shadow-[0_15px_35px_rgba(251,146,60,0.4)] hover:bg-orange-500 active:scale-90 z-30 transition-all flex items-center justify-center btn-premium"
-          >
-            <VolumeNotice
-              theme="outline"
-              size={30}
-              strokeWidth={3}
-              fill="#fff"
-            />
-          </button>
         </div>
       </div>
     </>
