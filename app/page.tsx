@@ -293,7 +293,7 @@ export default function AppTK() {
       const { data, error } = await supabase
         .from("guru")
         .select("nama")
-        .eq("pin", pinLogin.trim())
+        .eq("pin_login", pinLogin.trim()) // ← PASTIKAN BARIS INI
         .maybeSingle();
       if (error) throw error;
       if (!data) {
@@ -309,7 +309,6 @@ export default function AppTK() {
       setIsCheckingPin(false);
     }
   };
-
   // ---------- FUNGSI BISNIS ----------
   const toggleSpp = async (idAnak: string, statusSaatIni: string) => {
     getaranHalus();

@@ -189,6 +189,14 @@ export default function AdminPage() {
                   {totalMurid}
                 </p>
               </div>
+              <div className="flex justify-end mb-8">
+                <a
+                  href="/api/export"
+                  className="bg-emerald-500 text-white font-extrabold py-3 px-6 rounded-2xl shadow-lg shadow-emerald-200 active:scale-95 transition-all btn-premium text-sm flex items-center gap-2"
+                >
+                  📥 Unduh Laporan Excel
+                </a>
+              </div>
               <div
                 className="glass-panel p-4 rounded-2xl shadow-md text-center slide-up"
                 style={{ animationDelay: "0.1s" }}
