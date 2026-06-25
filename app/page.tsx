@@ -1,42 +1,23 @@
 "use client";
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
+import { VolumeNotice } from "@icon-park/react";
 
-import {
-  CheckOne,
-  Box,
-  Logout,
-  BankCard,
-  ChartLine,
-  Home,
-  Message,
-  Save,
-  Loading,
-  Left,
-  VolumeNotice,
-  Close,
-  User,
-  Send,
-  Attention,
-  MagicWand,
-  EmotionHappy,
-  Bowl,
-  SleepOne,
-  Calendar,
-  Search,
-  ArrowLeft,
-  ArrowRight,
-  Login,
-  Peoples,
-} from "@icon-park/react";
-import "@icon-park/react/styles/index.css";
+import LoginScreen from "./components/LoginScreen";
+import KelasScreen from "./components/KelasScreen";
+import DashboardHeader from "./components/dashboard/DashboardHeader";
+import TabDatang from "./components/dashboard/TabDatang";
+import TabKegiatan from "./components/dashboard/TabKegiatan";
+import TabPulang from "./components/dashboard/TabPulang";
+import TabKeuangan from "./components/dashboard/TabKeuangan";
+import TabLaporan from "./components/dashboard/TabLaporan";
+import BottomNav from "./components/BottomNav";
+import SearchBar from "./components/SearchBar";
+import ChatModal from "./components/modals/ChatModal";
+import BroadcastModal from "./components/modals/BroadcastModal";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error("Supabase credentials tidak ditemukan!");
-}
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const TEMPLATE_PESAN = {
@@ -82,6 +63,7 @@ const getWeekRange = (offset: number = 0) => {
 };
 
 export default function AppTK() {
+  // ---------- STATE ----------
   const [tampilan, setTampilan] = useState("login");
   const [namaGuru, setNamaGuru] = useState("");
   const [pinLogin, setPinLogin] = useState("");
@@ -126,6 +108,16 @@ export default function AppTK() {
     Record<string, string>
   >({});
   const [ketPenjemput, setKetPenjemput] = useState<Record<string, string>>({});
+
+  const [showUploadObj, setShowUploadObj] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [strukFileObj, setStrukFileObj] = useState<Record<string, File | null>>(
+    {},
+  );
+  const [isUploadingStrukObj, setIsUploadingStrukObj] = useState<
+    Record<string, boolean>
+  >({});
 
   const [bukaSiaran, setBukaSiaran] = useState(false);
   const [tipeSiaran, setTipeSiaran] = useState("umum");
@@ -293,7 +285,7 @@ export default function AppTK() {
       const { data, error } = await supabase
         .from("guru")
         .select("nama")
-        .eq("pin_login", pinLogin.trim()) // ← PASTIKAN BARIS INI
+        .eq("pin_login", pinLogin.trim())
         .maybeSingle();
       if (error) throw error;
       if (!data) {
@@ -309,6 +301,7 @@ export default function AppTK() {
       setIsCheckingPin(false);
     }
   };
+
   // ---------- FUNGSI BISNIS ----------
   const toggleSpp = async (idAnak: string, statusSaatIni: string) => {
     getaranHalus();
@@ -701,34 +694,6 @@ export default function AppTK() {
     }
   };
 
-  const SearchBar = () => (
-    <div className="relative mb-4 slide-up z-10">
-      <Search
-        theme="outline"
-        size={18}
-        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-      />
-      <input
-        type="text"
-        placeholder="Cari nama murid..."
-        value={cariMurid}
-        onChange={(e) => setCariMurid(e.target.value)}
-        className="w-full pl-10 pr-10 py-3 bg-white/80 backdrop-blur-sm border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400 focus:shadow-[0_0_0_4px_rgba(129,140,248,0.15)] transition-all placeholder:text-slate-400 text-slate-700"
-      />
-      {cariMurid && (
-        <button
-          onClick={() => {
-            getaranHalus();
-            setCariMurid("");
-          }}
-          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 active:scale-90 transition-all"
-        >
-          <Close theme="outline" size={16} strokeWidth={4} />
-        </button>
-      )}
-    </div>
-  );
-
   const renderFotoMurid = (anak: any, className: string) => {
     const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(anak.nama)}&background=EEF2FF&color=4F46E5&rounded=false&size=64`;
     return (
@@ -748,24 +713,9 @@ export default function AppTK() {
     <>
       <style
         dangerouslySetInnerHTML={{
-          __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif; background: #F8FAFC; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; } .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
-        .slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
-        .scale-in { animation: scaleIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-        @keyframes slideUp { 0% { opacity: 0; transform: translateY(40px); } 100% { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
-        @keyframes scaleIn { 0% { opacity: 0; transform: scale(0.92); } 100% { opacity: 1; transform: scale(1); } }
-        .btn-premium { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.04), 0 2px 6px rgba(0,0,0,0.02); }
-        .btn-premium:active { transform: scale(0.96); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
-        .btn-premium:hover { box-shadow: 0 12px 24px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.04); transform: translateY(-1px); }
-      `,
+          __html: `@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'); body { font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif; background: #F8FAFC; } .hide-scrollbar::-webkit-scrollbar { display: none; } .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; } .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); } .fade-in { animation: fadeIn 0.5s ease-out forwards; } .slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; } .scale-in { animation: scaleIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; } @keyframes slideUp { 0% { opacity: 0; transform: translateY(40px); } 100% { opacity: 1; transform: translateY(0); } } @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } } @keyframes scaleIn { 0% { opacity: 0; transform: scale(0.92); } 100% { opacity: 1; transform: scale(1); } } .btn-premium { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.04), 0 2px 6px rgba(0,0,0,0.02); } .btn-premium:active { transform: scale(0.96); box-shadow: 0 2px 6px rgba(0,0,0,0.08); } .btn-premium:hover { box-shadow: 0 12px 24px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.04); transform: translateY(-1px); }`,
         }}
       />
-
       <div
         className="fixed inset-0 w-full min-h-[100dvh] flex items-center justify-center font-sans"
         style={{
@@ -777,1305 +727,207 @@ export default function AppTK() {
       >
         <div className="absolute inset-0 bg-gradient-to-b from-indigo-900/30 to-slate-900/50 backdrop-blur-[8px]"></div>
         <div className="relative w-full max-w-md h-[100dvh] md:h-[90vh] bg-white/90 backdrop-blur-xl shadow-[0_30px_70px_rgba(0,0,0,0.25)] md:rounded-[3rem] flex flex-col overflow-hidden border border-white/60">
-          {/* LOGIN */}
           {tampilan === "login" && (
-            <div className="flex-1 flex flex-col p-6 bg-white/95 fade-in relative">
-              <div className="w-full pt-10 pb-6 flex justify-center">
-                <div className="w-24 h-24 relative">
-                  <Image
-                    src="/piasmart.png"
-                    alt="PiaSmart"
-                    fill
-                    sizes="96px"
-                    priority
-                    className="object-contain opacity-95 drop-shadow-md"
-                  />
-                </div>
-              </div>
-              <div className="flex-1 flex flex-col items-center justify-center w-full">
-                <div className="w-full text-center">
-                  <div className="relative inline-block mb-6">
-                    <div className="absolute inset-0 bg-indigo-200 blur-2xl rounded-full opacity-30"></div>
-                    <img
-                      src="logo-tk.jpeg"
-                      alt="Logo TK"
-                      className="relative w-28 h-28 mx-auto shadow-xl rounded-[2rem] border-4 border-white object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src =
-                          "https://ui-avatars.com/api/?name=TK&background=EEF2FF&color=4F46E5&rounded=false&size=128";
-                      }}
-                    />
-                  </div>
-                  <h1 className="text-2xl font-extrabold text-slate-800 mb-1 tracking-tight">
-                    TK Tadika Mesra
-                  </h1>
-                  <p className="text-slate-500 font-semibold mb-10 text-[10px] tracking-widest uppercase">
-                    Portal Guru Digital
-                  </p>
-
-                  {isLoading ? (
-                    <div className="flex flex-col items-center justify-center text-indigo-400 space-y-4 mb-8">
-                      <Loading
-                        theme="outline"
-                        size={36}
-                        strokeWidth={4}
-                        fill="currentColor"
-                        className="animate-spin"
-                      />
-                      <span className="text-sm font-semibold text-slate-500">
-                        Menghubungkan ke server...
-                      </span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="relative mb-4 w-full max-w-[300px] mx-auto">
-                        <input
-                          type="password"
-                          inputMode="numeric"
-                          maxLength={6}
-                          placeholder="Masukkan PIN"
-                          className="w-full py-3 bg-slate-50 border-2 border-slate-50 rounded-xl text-center text-xl font-bold tracking-widest outline-none focus:border-indigo-400 transition-all placeholder:text-slate-300 text-slate-700"
-                          value={pinLogin}
-                          onChange={(e) =>
-                            setPinLogin(e.target.value.replace(/\D/g, ""))
-                          }
-                          autoFocus
-                        />
-                      </div>
-                      {loginError && (
-                        <p className="text-rose-500 text-xs font-bold mb-4">
-                          {loginError}
-                        </p>
-                      )}
-                      <div className="w-full max-w-[300px] mx-auto">
-                        <button
-                          disabled={isLoading || isCheckingPin}
-                          onClick={handleLogin}
-                          className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-extrabold py-3 rounded-2xl text-sm active:scale-[0.97] transition-all disabled:opacity-50 shadow-xl shadow-indigo-200 btn-premium flex justify-center items-center gap-3"
-                        >
-                          {isCheckingPin ? (
-                            <Loading
-                              theme="outline"
-                              size={22}
-                              strokeWidth={4}
-                              className="animate-spin"
-                            />
-                          ) : (
-                            <Login
-                              theme="outline"
-                              size={22}
-                              strokeWidth={4}
-                              fill="currentColor"
-                            />
-                          )}
-                          <span>Masuk</span>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="w-full pb-4 flex flex-col items-center justify-center opacity-60">
-                <span className="text-[8px] text-slate-500 font-bold tracking-widest mb-2 uppercase">
-                  Powered By
-                </span>
-                <div className="w-16 aspect-[5/7] relative">
-                  <Image
-                    src="/logo-digi.png"
-                    alt="Digi.ID"
-                    fill
-                    sizes="64px"
-                    priority
-                    className="object-contain grayscale opacity-60"
-                  />
-                </div>
-              </div>
-            </div>
+            <LoginScreen
+              isLoading={isLoading}
+              pinLogin={pinLogin}
+              loginError={loginError}
+              isCheckingPin={isCheckingPin}
+              onPinChange={setPinLogin}
+              onLogin={handleLogin}
+            />
           )}
-
-          {/* HALAMAN KELAS */}
           {tampilan === "kelas" && (
-            <div className="flex-1 p-6 bg-slate-50/80 overflow-y-auto hide-scrollbar fade-in">
-              <div className="flex justify-between items-center mb-10 mt-4">
-                <div>
-                  <p className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-1">
-                    Selamat Bertugas,
-                  </p>
-                  <h2 className="text-2xl font-extrabold text-slate-800">
-                    Guru {namaGuru}
-                  </h2>
-                </div>
-                <button
-                  onClick={() => {
-                    getaranHalus();
-                    setTampilan("login");
-                  }}
-                  className="p-4 bg-white/90 border border-slate-200 text-slate-500 rounded-2xl hover:bg-white active:scale-95 transition-all shadow-sm"
-                >
-                  <Logout
-                    theme="outline"
-                    size={22}
-                    strokeWidth={4}
-                    fill="currentColor"
-                  />
-                </button>
-              </div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6">
-                Pilih Kelas Hari Ini
-              </p>
-              <div className="space-y-5">
-                <button
-                  onClick={() => {
-                    setKelasAktif("mawar");
-                    setTampilan("dashboard");
-                    setTabAktif("datang");
-                    setCariMurid("");
-                  }}
-                  className="w-full bg-white/80 backdrop-blur border-2 border-indigo-100 p-6 rounded-[2rem] hover:border-indigo-300 active:scale-[0.98] transition-all flex items-center gap-5 text-left group shadow-md hover:shadow-xl"
-                >
-                  <div className="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                    <Peoples
-                      theme="outline"
-                      size={36}
-                      strokeWidth={3}
-                      fill="currentColor"
-                    />
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-extrabold text-slate-800">
-                      Kelas Mawar
-                    </h4>
-                    <p className="text-indigo-500 font-bold text-xs mt-2 bg-indigo-50 px-4 py-1.5 rounded-xl inline-block">
-                      {dataSemuaMurid.filter((m) => m.kelas === "mawar").length}{" "}
-                      Murid
-                    </p>
-                  </div>
-                </button>
-                <button
-                  onClick={() => {
-                    setKelasAktif("melati");
-                    setTampilan("dashboard");
-                    setTabAktif("datang");
-                    setCariMurid("");
-                  }}
-                  className="w-full bg-white/80 backdrop-blur border-2 border-teal-100 p-6 rounded-[2rem] hover:border-teal-300 active:scale-[0.98] transition-all flex items-center gap-5 text-left group shadow-md hover:shadow-xl"
-                >
-                  <div className="w-20 h-20 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-white transition-colors">
-                    <Peoples
-                      theme="outline"
-                      size={36}
-                      strokeWidth={3}
-                      fill="currentColor"
-                    />
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-extrabold text-slate-800">
-                      Kelas Melati
-                    </h4>
-                    <p className="text-teal-500 font-bold text-xs mt-2 bg-teal-50 px-4 py-1.5 rounded-xl inline-block">
-                      {
-                        dataSemuaMurid.filter((m) => m.kelas === "melati")
-                          .length
-                      }{" "}
-                      Murid
-                    </p>
-                  </div>
-                </button>
-              </div>
-            </div>
+            <KelasScreen
+              namaGuru={namaGuru}
+              jumlahMawar={
+                dataSemuaMurid.filter((m) => m.kelas === "mawar").length
+              }
+              jumlahMelati={
+                dataSemuaMurid.filter((m) => m.kelas === "melati").length
+              }
+              onPilihKelas={(k) => {
+                setKelasAktif(k);
+                setTampilan("dashboard");
+                setTabAktif("datang");
+                setCariMurid("");
+              }}
+              onLogout={() => {
+                getaranHalus();
+                setTampilan("login");
+              }}
+            />
           )}
 
-          {/* DASHBOARD */}
           {tampilan === "dashboard" && (
             <div className="flex flex-col h-full relative fade-in">
-              <div className="glass-panel z-40 sticky top-0 px-6 pt-12 pb-4 border-b border-white/40">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg ${kelasAktif === "mawar" ? "bg-indigo-400" : "bg-teal-400"}`}
-                    >
-                      <Peoples
-                        theme="outline"
-                        size={28}
-                        strokeWidth={3}
-                        fill="currentColor"
-                      />
-                    </div>
-                    <div>
-                      <h1 className="text-xl font-extrabold text-slate-800 leading-tight">
-                        Kelas {kelasAktif === "mawar" ? "Mawar" : "Melati"}
-                      </h1>
-                      <div className="mt-1 inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider">
-                        <User theme="filled" size={12} /> 1 Guru :{" "}
-                        {muridHadir.length} Hadir
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      getaranHalus();
-                      setTampilan("kelas");
-                    }}
-                    className="p-4 bg-white/80 border border-slate-200 text-slate-500 rounded-2xl hover:bg-white active:scale-95 transition-all shadow-sm"
-                  >
-                    <Left
-                      theme="outline"
-                      size={22}
-                      strokeWidth={4}
-                      fill="currentColor"
-                    />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-6 pt-6 pb-[180px] hide-scrollbar relative">
-                {tabAktif !== "laporan" && <SearchBar />}
-
-                {/* TAB DATANG */}
-                {tabAktif === "datang" && (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-end mb-6">
-                      <h2 className="font-extrabold text-slate-800 text-xl tracking-tight">
-                        Check‑In Pagi
-                      </h2>
-                      <span className="bg-indigo-50 text-indigo-600 text-xs font-bold px-4 py-2 rounded-xl border border-indigo-100">
-                        Belum Hadir: {muridBelumHadirFilter.length}
-                      </span>
-                    </div>
-                    {muridBelumHadirFilter.map((anak, i) => (
-                      <div
-                        key={anak.id}
-                        className="bg-white/90 backdrop-blur p-5 rounded-[2rem] shadow-md border border-white/60 flex items-center justify-between slide-up"
-                        style={{ animationDelay: `${i * 0.06}s` }}
-                      >
-                        <div className="flex items-center gap-4">
-                          {renderFotoMurid(
-                            anak,
-                            "w-16 h-16 rounded-2xl object-cover border-2 border-white shadow-sm",
-                          )}
-                          <span className="font-bold text-slate-800 text-base">
-                            {anak.nama}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => bukaChatPersonal(anak)}
-                            className="bg-indigo-50 text-indigo-500 p-1.5 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95"
-                          >
-                            <Message
-                              theme="outline"
-                              size={16}
-                              strokeWidth={4}
-                            />
-                          </button>
-                          <button
-                            onClick={() => handleDatang(anak)}
-                            className="bg-orange-400 text-white font-extrabold px-6 py-3.5 rounded-2xl shadow-lg shadow-orange-200 active:scale-95 transition-all btn-premium text-sm"
-                          >
-                            Hadir
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* TAB KEGIATAN */}
-                {tabAktif === "kegiatan" && (
-                  <div className="space-y-6">
-                    <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-2">
-                      Aktivitas & Daily Sheet
-                    </h2>
-                    {muridHadirFilter.length === 0 ? (
-                      <div className="text-center py-16 bg-white/50 rounded-[2rem] border-2 border-dashed border-slate-200">
-                        <Attention
-                          theme="filled"
-                          size={48}
-                          fill="#94A3B8"
-                          className="mx-auto mb-3"
-                        />
-                        <h3 className="font-bold text-slate-600 text-base">
-                          Kelas Kosong / Tak Ditemukan
-                        </h3>
-                      </div>
-                    ) : (
-                      <div className="bg-white/90 backdrop-blur p-6 rounded-[2.5rem] shadow-md border border-white/60 slide-up">
-                        <div className="flex justify-between items-center mb-4">
-                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                            <CheckOne size={18} /> 1. Peserta
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                getaranHalus();
-                                setPilihanAnak(
-                                  muridHadirFilter
-                                    .filter((m) => {
-                                      const d = statusDailySheetHarian[m.id];
-                                      return (
-                                        !d || (!d.makan && !d.tidur && !d.mood)
-                                      );
-                                    })
-                                    .map((m) => m.id),
-                                );
-                              }}
-                              className="text-[10px] font-bold text-rose-600 bg-rose-50 px-3 py-2 rounded-xl active:scale-95 hover:bg-rose-100 transition-colors"
-                            >
-                              Pilih Belum
-                            </button>
-                            <button
-                              onClick={() => {
-                                getaranHalus();
-                                setPilihanAnak(
-                                  pilihanAnak.length === muridHadirFilter.length
-                                    ? []
-                                    : muridHadirFilter.map((m) => m.id),
-                                );
-                              }}
-                              className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-3 py-2 rounded-xl active:scale-95 hover:bg-indigo-100 transition-colors"
-                            >
-                              {pilihanAnak.length === muridHadirFilter.length
-                                ? "Batal"
-                                : "Semua"}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-3 mb-6 max-h-56 overflow-y-auto hide-scrollbar bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                          {muridHadirFilter.map((anak) => {
-                            const isSelected = pilihanAnak.includes(anak.id);
-                            const dailyData = statusDailySheetHarian[anak.id];
-                            const hasDailyData =
-                              !!dailyData &&
-                              (dailyData.makan ||
-                                dailyData.tidur ||
-                                dailyData.mood);
-                            return (
-                              <button
-                                key={anak.id}
-                                onClick={() => {
-                                  getaranHalus();
-                                  setPilihanAnak((prev) =>
-                                    prev.includes(anak.id)
-                                      ? prev.filter((id) => id !== anak.id)
-                                      : [...prev, anak.id],
-                                  );
-                                }}
-                                className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-left transition-all active:scale-95 border-2 ${isSelected ? "bg-indigo-50 border-indigo-400 shadow-sm" : "bg-white border-slate-200 hover:border-slate-300"}`}
-                              >
-                                {renderFotoMurid(
-                                  anak,
-                                  "w-10 h-10 rounded-xl object-cover border border-slate-100",
-                                )}
-                                <span
-                                  className={`text-xs font-bold ${isSelected ? "text-indigo-700" : "text-slate-700"}`}
-                                >
-                                  {anak.nama}
-                                </span>
-                                {hasDailyData && (
-                                  <div className="flex items-center gap-1 ml-1">
-                                    {dailyData.makan && (
-                                      <Bowl
-                                        theme="filled"
-                                        size={16}
-                                        className="text-green-500"
-                                      />
-                                    )}
-                                    {dailyData.tidur && (
-                                      <SleepOne
-                                        theme="filled"
-                                        size={16}
-                                        className="text-violet-500"
-                                      />
-                                    )}
-                                    {dailyData.mood && (
-                                      <EmotionHappy
-                                        theme="filled"
-                                        size={16}
-                                        className={
-                                          dailyData.mood === "Senang"
-                                            ? "text-yellow-500"
-                                            : dailyData.mood === "Biasa"
-                                              ? "text-gray-500"
-                                              : "text-red-500"
-                                        }
-                                      />
-                                    )}
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                          <MagicWand size={16} /> 2. Jurnal & Foto
-                        </label>
-                        <div className="mb-3">
-                          <select
-                            className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-slate-700 text-xs font-bold outline-none focus:border-indigo-400 transition-all"
-                            value={labelAktivitas}
-                            onChange={(e) => handlePilihLabel(e.target.value)}
-                          >
-                            <option value="">
-                              ✨ Pilih label kegiatan (opsional)
-                            </option>
-                            <option value="motorik">🏃 Motorik</option>
-                            <option value="kognitif">🧠 Kognitif</option>
-                            <option value="sosial">💬 Sosial-Emosional</option>
-                          </select>
-                        </div>
-                        <textarea
-                          placeholder="Ketik aktivitas anak di sini..."
-                          className="w-full min-h-[100px] p-4 bg-slate-50/80 border-2 border-slate-200 rounded-2xl mb-4 outline-none focus:border-indigo-400 text-slate-700 text-sm font-semibold resize-y placeholder:text-slate-400"
-                          value={jenisKegiatan}
-                          onChange={(e) => {
-                            setJenisKegiatan(e.target.value);
-                            setLabelAktivitas("");
-                          }}
-                        />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files[0])
-                              setFotoAktivitas(e.target.files[0]);
-                          }}
-                          className="block w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-indigo-50 file:text-indigo-600 mb-6"
-                        />
-
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                          <Bowl size={14} /> 3. Daily Sheet Cepat
-                        </label>
-                        <div className="space-y-4 mb-5 bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-600 mb-2 flex items-center gap-1.5">
-                              <Bowl theme="outline" size={14} /> Makan Siang
-                            </p>
-                            <div className="flex gap-2">
-                              {["Habis", "Setengah", "Tidak Mau"].map(
-                                (opsi) => (
-                                  <button
-                                    key={opsi}
-                                    onClick={() =>
-                                      setDailyMakan(
-                                        dailyMakan === opsi ? "" : opsi,
-                                      )
-                                    }
-                                    className={`flex-1 py-2 text-[10px] font-bold rounded-lg border active:scale-95 transition-all ${dailyMakan === opsi ? "bg-amber-100 border-amber-400 text-amber-800 shadow-sm" : "bg-white border-slate-200 text-slate-600"}`}
-                                  >
-                                    {opsi}
-                                  </button>
-                                ),
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex gap-3">
-                            <div className="flex-1">
-                              <p className="text-[10px] font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
-                                <SleepOne theme="outline" size={14} /> Tidur
-                                Mulai
-                              </p>
-                              <input
-                                type="time"
-                                value={dailyTidurMulai}
-                                onChange={(e) =>
-                                  setDailyTidurMulai(e.target.value)
-                                }
-                                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-indigo-400"
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-[10px] font-bold text-slate-600 mb-1.5">
-                                Selesai
-                              </p>
-                              <input
-                                type="time"
-                                value={dailyTidurSelesai}
-                                onChange={(e) =>
-                                  setDailyTidurSelesai(e.target.value)
-                                }
-                                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-indigo-400"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-600 mb-2 flex items-center gap-1.5">
-                              <EmotionHappy theme="outline" size={14} /> Mood
-                            </p>
-                            <div className="flex gap-2">
-                              {[
-                                {
-                                  label: "Senang",
-                                  icon: "😊",
-                                  activeClass:
-                                    "bg-emerald-100 border-emerald-400 text-emerald-800 font-bold",
-                                },
-                                {
-                                  label: "Biasa",
-                                  icon: "😐",
-                                  activeClass:
-                                    "bg-indigo-100 border-indigo-400 text-indigo-800 font-bold",
-                                },
-                                {
-                                  label: "Rewel",
-                                  icon: "😭",
-                                  activeClass:
-                                    "bg-rose-100 border-rose-400 text-rose-800 font-bold",
-                                },
-                              ].map((m) => {
-                                const isActive = dailyMood === m.label;
-                                return (
-                                  <button
-                                    key={m.label}
-                                    onClick={() =>
-                                      setDailyMood(isActive ? "" : m.label)
-                                    }
-                                    className={`flex-1 py-2 rounded-lg border flex justify-center items-center gap-1 active:scale-95 transition-all ${isActive ? m.activeClass : "bg-white border-slate-200 text-slate-500 grayscale opacity-70"}`}
-                                  >
-                                    <span className="text-sm">{m.icon}</span>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider">
-                                      {m.label}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={simpanKegiatanMassal}
-                          disabled={isSaving}
-                          className="w-full bg-indigo-500 text-white font-extrabold py-5 rounded-2xl active:scale-[0.97] transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 btn-premium text-base"
-                        >
-                          {isSaving ? (
-                            <Loading
-                              theme="outline"
-                              size={22}
-                              strokeWidth={4}
-                              className="animate-spin"
-                            />
-                          ) : (
-                            <Save
-                              theme="outline"
-                              size={22}
-                              strokeWidth={4}
-                              fill="currentColor"
-                            />
-                          )}
-                          <span>Kirim Jurnal & Sheet</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* TAB PULANG */}
-                {tabAktif === "pulang" && (
-                  <div className="space-y-6">
-                    <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-4">
-                      Check‑Out
-                    </h2>
-                    {muridHadirFilter.map((anak, i) => (
-                      <div
-                        key={anak.id}
-                        className="bg-white/90 backdrop-blur p-6 rounded-[2.5rem] shadow-md border border-white/60 slide-up"
-                        style={{ animationDelay: `${i * 0.06}s` }}
-                      >
-                        <div className="flex items-center justify-between mb-6 pb-6 border-b border-slate-100">
-                          <div className="flex items-center gap-4">
-                            {renderFotoMurid(
-                              anak,
-                              "w-16 h-16 rounded-2xl object-cover border-2 border-white shadow-sm",
-                            )}
-                            <span className="font-bold text-slate-800 text-lg">
-                              {anak.nama}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => bukaChatPersonal(anak)}
-                            className="bg-indigo-50 text-indigo-500 p-1.5 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95"
-                          >
-                            <Message
-                              theme="outline"
-                              size={16}
-                              strokeWidth={4}
-                            />
-                          </button>
-                        </div>
-                        <div className="space-y-5">
-                          <select
-                            className="w-full p-4 bg-white/80 border-2 border-slate-200 rounded-2xl text-slate-700 text-sm font-bold outline-none focus:border-indigo-400 transition-all"
-                            value={penjemput[anak.id] || "Orang Tua"}
-                            onChange={(e) =>
-                              setPenjemput((prev) => ({
-                                ...prev,
-                                [anak.id]: e.target.value,
-                              }))
-                            }
-                          >
-                            <option value="Orang Tua">Orang Tua Kandung</option>
-                            <option value="Kakek/Nenek">Kakek / Nenek</option>
-                            <option value="Driver">Driver Jemputan</option>
-                            <option value="Lainnya">Lainnya...</option>
-                          </select>
-                          {(penjemput[anak.id] === "Lainnya" ||
-                            !penjemput[anak.id]) && (
-                            <input
-                              type="text"
-                              placeholder="Tuliskan nama penjemput"
-                              className="w-full p-4 bg-white/80 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-400 text-slate-700 text-sm font-semibold transition-all placeholder:text-slate-400"
-                              value={penjemputCustom[anak.id] || ""}
-                              onChange={(e) =>
-                                setPenjemputCustom((prev) => ({
-                                  ...prev,
-                                  [anak.id]: e.target.value,
-                                }))
-                              }
-                            />
-                          )}
-                          <input
-                            type="text"
-                            placeholder="Catatan Baju / Plat Nomor..."
-                            className="w-full p-4 bg-white/80 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-400 text-slate-700 text-sm font-semibold transition-all placeholder:text-slate-400"
-                            value={ketPenjemput[anak.id] || ""}
-                            onChange={(e) =>
-                              setKetPenjemput((prev) => ({
-                                ...prev,
-                                [anak.id]: e.target.value,
-                              }))
-                            }
-                          />
-                          <button
-                            onClick={() => handlePulang(anak)}
-                            className="w-full mt-4 bg-orange-400 text-white font-extrabold py-5 rounded-2xl hover:bg-orange-500 active:scale-[0.97] transition-all text-base flex items-center justify-center gap-3 shadow-xl shadow-orange-200 btn-premium"
-                          >
-                            <Home
-                              theme="outline"
-                              size={22}
-                              strokeWidth={4}
-                              fill="currentColor"
-                            />{" "}
-                            <span>Pulangkan & Kirim Notif</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* TAB KEUANGAN SPP */}
-                {tabAktif === "keuangan" && (
-                  <div className="space-y-5">
-                    <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-4">
-                      Status SPP
-                    </h2>
-                    <div className="mb-6 slide-up">
-                      <button
-                        onClick={handleResetDanTagihSppMassal}
-                        disabled={isResettingSpp}
-                        className="w-full bg-slate-800 text-white p-6 rounded-[2rem] flex flex-col items-center justify-center gap-3 hover:bg-slate-700 active:scale-95 transition-all shadow-2xl shadow-slate-200 disabled:opacity-50 btn-premium"
-                      >
-                        {isResettingSpp ? (
-                          <Loading
-                            theme="outline"
-                            size={32}
-                            className="animate-spin text-indigo-300"
-                          />
-                        ) : (
-                          <Calendar
-                            theme="outline"
-                            size={32}
-                            className="text-indigo-300"
-                          />
-                        )}
-                        <span className="font-bold text-lg tracking-wide">
-                          Mulai Penagihan Bulan Baru
-                        </span>
-                        <span className="text-xs text-slate-300 text-center font-medium leading-relaxed">
-                          Set semua murid menjadi menunggak & Kirim WA tagihan
-                          massal secara otomatis
-                        </span>
-                      </button>
-                    </div>
-                    <div className="space-y-4">
-                      {muridSemuaFilter.map((anak, i) => {
-                        const statusSpp = dapatkanStatusSpp(anak);
-                        return (
-                          <div
-                            key={anak.id}
-                            className="bg-white/90 backdrop-blur p-5 rounded-[2rem] shadow-md border border-white/60 flex items-center justify-between slide-up"
-                            style={{ animationDelay: `${i * 0.05}s` }}
-                          >
-                            <div className="flex items-center gap-4">
-                              {renderFotoMurid(
-                                anak,
-                                "w-14 h-14 rounded-2xl border-2 border-white object-cover shadow-sm",
-                              )}
-                              <span className="font-bold text-slate-800 text-base">
-                                {anak.nama}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => bukaChatPersonal(anak)}
-                                className="bg-indigo-50 text-indigo-500 p-1.5 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95"
-                              >
-                                <Message
-                                  theme="outline"
-                                  size={16}
-                                  strokeWidth={4}
-                                />
-                              </button>
-                              <button
-                                onClick={() => toggleSpp(anak.id, statusSpp)}
-                                className={`px-6 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 border-2 ${statusSpp === "LUNAS" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-rose-50 text-rose-600 border-rose-100"}`}
-                              >
-                                {statusSpp === "LUNAS" ? "LUNAS" : "MENUNGGAK"}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB LAPORAN */}
-                {tabAktif === "laporan" && (
-                  <div className="space-y-6">
-                    <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-2">
-                      Laporan
-                    </h2>
-                    <div className="flex gap-2 bg-slate-100/80 p-1 rounded-2xl mb-4">
-                      <button
-                        onClick={() => {
-                          setSubTabLaporan("harian");
-                          setSelectedStudentReport(null);
-                        }}
-                        className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${subTabLaporan === "harian" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500"}`}
-                      >
-                        Harian
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSubTabLaporan("mingguan");
-                          setSelectedStudentReport(null);
-                          setWeeklyData(null);
-                        }}
-                        className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${subTabLaporan === "mingguan" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500"}`}
-                      >
-                        Mingguan
-                      </button>
-                    </div>
-                    {subTabLaporan === "harian" && (
-                      <>
-                        <p className="text-xs font-bold text-slate-500">
-                          Klik anak untuk melihat laporan hari ini
-                        </p>
-                        <div className="space-y-3">
-                          {muridSemuaFilter.map((anak) => (
-                            <button
-                              key={anak.id}
-                              onClick={() => {
-                                getaranHalus();
-                                setSelectedStudentReport(
-                                  selectedStudentReport?.id === anak.id
-                                    ? null
-                                    : anak,
-                                );
-                              }}
-                              className="w-full bg-white/80 backdrop-blur p-4 rounded-2xl shadow-sm border border-white/60 flex items-center justify-between active:scale-[0.98] transition-all"
-                            >
-                              <div className="flex items-center gap-4">
-                                {renderFotoMurid(
-                                  anak,
-                                  "w-12 h-12 rounded-xl object-cover border border-slate-100",
-                                )}
-                                <span className="font-bold text-slate-800 text-sm">
-                                  {anak.nama}
-                                </span>
-                              </div>
-                              <ArrowRight
-                                theme="outline"
-                                size={20}
-                                className="text-slate-400"
-                              />
-                            </button>
-                          ))}
-                        </div>
-                        {selectedStudentReport && (
-                          <div className="mt-4 p-5 bg-white/90 backdrop-blur rounded-[2rem] shadow-md border border-white/60 slide-up">
-                            <h3 className="font-extrabold text-indigo-700 text-base mb-3">
-                              Laporan Hari Ini: {selectedStudentReport.nama}
-                            </h3>
-                            <div className="space-y-2 text-xs text-slate-700">
-                              <p>
-                                <span className="font-bold">Status:</span>{" "}
-                                {statusAnak[selectedStudentReport.id] ===
-                                "hadir"
-                                  ? "Hadir"
-                                  : statusAnak[selectedStudentReport.id] ===
-                                      "pulang"
-                                    ? "Sudah Pulang"
-                                    : "Belum Hadir"}
-                              </p>
-                              {statusAnak[selectedStudentReport.id] && (
-                                <>
-                                  <p>
-                                    <span className="font-bold">Datang:</span>{" "}
-                                    {statusAnak[selectedStudentReport.id] !==
-                                    "belum"
-                                      ? new Date().toLocaleTimeString("id-ID", {
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })
-                                      : "-"}
-                                  </p>
-                                  <p>
-                                    <span className="font-bold">Pulang:</span>{" "}
-                                    {statusAnak[selectedStudentReport.id] ===
-                                    "pulang"
-                                      ? new Date().toLocaleTimeString("id-ID", {
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })
-                                      : "-"}
-                                  </p>
-                                </>
-                              )}
-                              {logKegiatan[selectedStudentReport.id] && (
-                                <div>
-                                  <span className="font-bold">Aktivitas:</span>
-                                  <ul className="list-disc pl-5 mt-1">
-                                    {logKegiatan[selectedStudentReport.id].map(
-                                      (log: any, idx: number) => (
-                                        <li key={idx}>
-                                          [{log.waktu}] {log.teks}
-                                        </li>
-                                      ),
-                                    )}
-                                  </ul>
-                                </div>
-                              )}
-                              {statusDailySheetHarian[
-                                selectedStudentReport.id
-                              ] && (
-                                <div>
-                                  <span className="font-bold">
-                                    Daily Sheet:
-                                  </span>
-                                  <div className="flex gap-3 mt-1">
-                                    {statusDailySheetHarian[
-                                      selectedStudentReport.id
-                                    ].makan && (
-                                      <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-lg text-[10px] font-bold">
-                                        🍱{" "}
-                                        {
-                                          statusDailySheetHarian[
-                                            selectedStudentReport.id
-                                          ].makan
-                                        }
-                                      </span>
-                                    )}
-                                    {statusDailySheetHarian[
-                                      selectedStudentReport.id
-                                    ].tidur && (
-                                      <span className="bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-[10px] font-bold">
-                                        💤{" "}
-                                        {
-                                          statusDailySheetHarian[
-                                            selectedStudentReport.id
-                                          ].tidur
-                                        }
-                                      </span>
-                                    )}
-                                    {statusDailySheetHarian[
-                                      selectedStudentReport.id
-                                    ].mood && (
-                                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-lg text-[10px] font-bold">
-                                        😊{" "}
-                                        {
-                                          statusDailySheetHarian[
-                                            selectedStudentReport.id
-                                          ].mood
-                                        }
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {subTabLaporan === "mingguan" && (
-                      <>
-                        <div className="flex items-center justify-between mb-4">
-                          <button
-                            onClick={() => setWeeklyOffset(weeklyOffset - 1)}
-                            className="p-3 bg-white/80 border border-slate-200 rounded-xl active:scale-95"
-                          >
-                            <ArrowLeft
-                              theme="outline"
-                              size={20}
-                              className="text-slate-600"
-                            />
-                          </button>
-                          <span className="font-bold text-xs bg-indigo-50 px-4 py-2 rounded-xl text-indigo-600">
-                            {getWeekRange(
-                              weeklyOffset,
-                            ).mondayDate.toLocaleDateString("id-ID", {
-                              day: "numeric",
-                              month: "short",
-                            })}{" "}
-                            -{" "}
-                            {getWeekRange(
-                              weeklyOffset,
-                            ).sundayDate.toLocaleDateString("id-ID", {
-                              day: "numeric",
-                              month: "short",
-                            })}
-                          </span>
-                          <button
-                            onClick={() => setWeeklyOffset(weeklyOffset + 1)}
-                            className="p-3 bg-white/80 border border-slate-200 rounded-xl active:scale-95"
-                          >
-                            <ArrowRight
-                              theme="outline"
-                              size={20}
-                              className="text-slate-600"
-                            />
-                          </button>
-                        </div>
-                        <p className="text-xs font-bold text-slate-500 mb-2">
-                          Klik anak untuk melihat laporan mingguan
-                        </p>
-                        <div className="space-y-3">
-                          {muridSemuaFilter.map((anak) => (
-                            <button
-                              key={anak.id}
-                              onClick={() => fetchWeeklyReportForChild(anak)}
-                              className="w-full bg-white/80 backdrop-blur p-4 rounded-2xl shadow-sm border border-white/60 flex items-center justify-between active:scale-[0.98] transition-all"
-                            >
-                              <div className="flex items-center gap-4">
-                                {renderFotoMurid(
-                                  anak,
-                                  "w-12 h-12 rounded-xl object-cover border border-slate-100",
-                                )}
-                                <span className="font-bold text-slate-800 text-sm">
-                                  {anak.nama}
-                                </span>
-                              </div>
-                              <ArrowRight
-                                theme="outline"
-                                size={20}
-                                className="text-slate-400"
-                              />
-                            </button>
-                          ))}
-                        </div>
-                        {isLoadingWeekly && (
-                          <div className="flex justify-center py-8">
-                            <Loading
-                              className="animate-spin text-indigo-500"
-                              size={32}
-                            />
-                          </div>
-                        )}
-                        {weeklyData && !isLoadingWeekly && (
-                          <div className="mt-4 p-5 bg-white/90 backdrop-blur rounded-[2rem] shadow-md border border-white/60 slide-up">
-                            <h3 className="font-extrabold text-indigo-700 text-base mb-4">
-                              Laporan Mingguan: {weeklyData.anak.nama}
-                            </h3>
-                            <div className="space-y-4">
-                              {Object.entries(weeklyData.dailyMap).map(
-                                ([date, data]: [string, any]) => {
-                                  const hari = new Date(
-                                    date,
-                                  ).toLocaleDateString("id-ID", {
-                                    weekday: "short",
-                                    day: "numeric",
-                                  });
-                                  return (
-                                    <div
-                                      key={date}
-                                      className="p-3 bg-slate-50/80 rounded-xl"
-                                    >
-                                      <div className="flex justify-between items-center mb-1">
-                                        <span className="font-extrabold text-slate-700 text-xs">
-                                          {hari}
-                                        </span>
-                                        <span
-                                          className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${data.hadir ? (data.hadir.status_hadir === "hadir" || data.hadir.status_hadir === "pulang" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700") : "bg-slate-200 text-slate-600"}`}
-                                        >
-                                          {data.hadir
-                                            ? data.hadir.status_hadir ===
-                                              "pulang"
-                                              ? "Pulang"
-                                              : data.hadir.status_hadir
-                                            : "Tanpa Data"}
-                                        </span>
-                                      </div>
-                                      {data.kegiatan.length > 0 && (
-                                        <ul className="text-[10px] text-slate-600 list-disc pl-4">
-                                          {data.kegiatan.map(
-                                            (k: any, i: number) => (
-                                              <li key={i}>{k.deskripsi}</li>
-                                            ),
-                                          )}
-                                        </ul>
-                                      )}
-                                    </div>
-                                  );
-                                },
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* MODAL CHAT */}
-              {chatPersonalAktif && (
-                <div className="absolute inset-0 z-50 bg-slate-900/40 backdrop-blur-lg flex items-end justify-center sm:items-center sm:p-4 fade-in">
-                  <div className="bg-white w-full rounded-t-[3rem] sm:rounded-3xl shadow-2xl flex flex-col h-[80vh] sm:h-auto sm:max-h-[85vh] slide-up">
-                    <div className="w-full flex justify-center pt-4 pb-2 sm:hidden">
-                      <div className="w-16 h-1.5 bg-slate-200 rounded-full"></div>
-                    </div>
-                    <div className="px-6 py-5 flex justify-between items-center border-b border-slate-100">
-                      <h2 className="text-lg font-extrabold text-slate-800 flex items-center gap-3 truncate">
-                        <Message
-                          theme="outline"
-                          size={28}
-                          strokeWidth={4}
-                          fill="currentColor"
-                          className="text-indigo-400"
-                        />{" "}
-                        Chat: {chatPersonalAktif.nama}
-                      </h2>
-                      <button
-                        onClick={() => setChatPersonalAktif(null)}
-                        className="p-3 text-slate-400 hover:bg-slate-100 rounded-2xl transition-colors active:scale-90"
-                      >
-                        <Close
-                          theme="outline"
-                          size={24}
-                          strokeWidth={4}
-                          fill="currentColor"
-                        />
-                      </button>
-                    </div>
-                    <div className="p-6 overflow-y-auto flex-1 hide-scrollbar flex flex-col">
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
-                        Tulis Pesan
-                      </label>
-                      <textarea
-                        className="w-full flex-1 min-h-[220px] p-5 bg-slate-50 border-2 border-slate-200 rounded-3xl outline-none focus:border-indigo-400 text-slate-700 font-semibold text-sm resize-none mb-6 transition-all leading-relaxed placeholder:text-slate-400"
-                        value={teksChatPersonal}
-                        onChange={(e) => setTeksChatPersonal(e.target.value)}
-                      />
-                      <button
-                        disabled={isMengirimChat}
-                        onClick={handleKirimChatPersonal}
-                        className="w-full bg-indigo-500 text-white font-extrabold py-5 rounded-2xl active:scale-[0.97] transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 btn-premium text-base disabled:opacity-70"
-                      >
-                        {isMengirimChat ? (
-                          <Loading
-                            theme="outline"
-                            size={22}
-                            strokeWidth={4}
-                            className="animate-spin"
-                          />
-                        ) : (
-                          <Send
-                            theme="outline"
-                            size={22}
-                            strokeWidth={4}
-                            fill="currentColor"
-                          />
-                        )}
-                        <span>Kirim via WhatsApp</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* FAB BROADCAST */}
-              <button
-                onClick={() => {
+              <DashboardHeader
+                kelasAktif={kelasAktif}
+                muridHadir={muridHadir.length}
+                onKembali={() => {
                   getaranHalus();
-                  setBukaSiaran(true);
+                  setTampilan("kelas");
                 }}
-                className="absolute bottom-[120px] right-6 bg-orange-400 text-white w-16 h-16 rounded-full shadow-[0_15px_35px_rgba(251,146,60,0.4)] hover:bg-orange-500 active:scale-90 z-30 transition-all flex items-center justify-center btn-premium"
-              >
-                <VolumeNotice
-                  theme="outline"
-                  size={30}
-                  strokeWidth={3}
-                  fill="#fff"
-                />
-              </button>
-
-              {/* MODAL SIARAN */}
-              {bukaSiaran && (
-                <div className="absolute inset-0 z-50 bg-slate-900/40 backdrop-blur-lg flex items-end justify-center sm:items-center sm:p-4 fade-in">
-                  <div className="bg-white w-full rounded-t-[3rem] sm:rounded-3xl shadow-2xl flex flex-col h-[85vh] sm:h-auto sm:max-h-[85vh] slide-up">
-                    <div className="w-full flex justify-center pt-4 pb-2 sm:hidden">
-                      <div className="w-16 h-1.5 bg-slate-200 rounded-full"></div>
-                    </div>
-                    <div className="px-6 py-5 flex justify-between items-center border-b border-slate-100">
-                      <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-3">
-                        <VolumeNotice
-                          theme="outline"
-                          size={28}
-                          strokeWidth={4}
-                          fill="currentColor"
-                          className="text-orange-400"
-                        />{" "}
-                        Pusat Siaran
-                      </h2>
-                      <button
-                        onClick={() => {
-                          getaranHalus();
-                          setBukaSiaran(false);
-                        }}
-                        className="p-3 text-slate-400 hover:bg-slate-100 rounded-2xl transition-colors active:scale-90"
-                      >
-                        <Close
-                          theme="outline"
-                          size={24}
-                          strokeWidth={4}
-                          fill="currentColor"
-                        />
-                      </button>
-                    </div>
-                    <div className="p-6 overflow-y-auto flex-1 hide-scrollbar">
-                      <div className="flex gap-3 overflow-x-auto pb-5 mb-5 hide-scrollbar">
-                        <button
-                          onClick={() => {
-                            getaranHalus();
-                            setTipeSiaran("umum");
-                            setTeksSiaran(TEMPLATE_PESAN.umum);
-                          }}
-                          className={`px-6 py-4 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border-2 ${tipeSiaran === "umum" ? "bg-indigo-50 border-indigo-400 text-indigo-700" : "bg-white border-slate-200 text-slate-600"}`}
-                        >
-                          Info Umum
-                        </button>
-                        <button
-                          onClick={() => {
-                            getaranHalus();
-                            setTipeSiaran("spp");
-                            setTeksSiaran(TEMPLATE_PESAN.spp);
-                          }}
-                          className={`px-6 py-4 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border-2 ${tipeSiaran === "spp" ? "bg-indigo-50 border-indigo-400 text-indigo-700" : "bg-white border-slate-200 text-slate-600"}`}
-                        >
-                          Tagihan SPP
-                        </button>
-                      </div>
-                      <textarea
-                        className="w-full flex-1 min-h-[240px] p-5 bg-slate-50 border-2 border-slate-200 rounded-3xl outline-none focus:border-indigo-400 text-slate-700 font-semibold text-sm resize-none mb-6 transition-all placeholder:text-slate-400"
-                        value={teksSiaran}
-                        onChange={(e) => setTeksSiaran(e.target.value)}
-                      />
-                      <button
-                        disabled={isBroadcasting}
-                        onClick={handleKirimSiaran}
-                        className="w-full bg-slate-800 text-white font-extrabold py-5 rounded-2xl active:scale-[0.97] transition-all flex justify-center gap-3 shadow-xl shadow-slate-200 btn-premium text-base"
-                      >
-                        {isBroadcasting ? (
-                          <Loading
-                            theme="outline"
-                            size={22}
-                            className="animate-spin"
-                          />
-                        ) : (
-                          <Send theme="outline" size={22} fill="currentColor" />
-                        )}
-                        <span>Kirim Broadcast</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* BOTTOM NAVIGATION */}
-              <div className="absolute bottom-5 left-4 right-4 z-40 bg-white/80 backdrop-blur-xl border border-white/80 p-2 rounded-[2.5rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] flex justify-between gap-1">
-                <button
-                  onClick={() => {
-                    getaranHalus();
-                    setTabAktif("datang");
-                    setCariMurid("");
-                  }}
-                  className={`flex-1 min-w-[64px] py-3 rounded-2xl flex flex-col items-center transition-all ${tabAktif === "datang" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
-                >
-                  <CheckOne size={26} className="mb-1" strokeWidth={3} />{" "}
-                  <span className="text-[9px] font-extrabold uppercase">
-                    Tiba
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    getaranHalus();
-                    setTabAktif("kegiatan");
-                    setCariMurid("");
-                  }}
-                  className={`flex-1 min-w-[64px] py-3 rounded-2xl flex flex-col items-center transition-all ${tabAktif === "kegiatan" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
-                >
-                  <Box size={26} className="mb-1" strokeWidth={3} />{" "}
-                  <span className="text-[9px] font-extrabold uppercase">
-                    Aktivitas
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    getaranHalus();
-                    setTabAktif("pulang");
-                    setCariMurid("");
-                  }}
-                  className={`flex-1 min-w-[64px] py-3 rounded-2xl flex flex-col items-center transition-all ${tabAktif === "pulang" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
-                >
-                  <Logout size={26} className="mb-1" strokeWidth={3} />{" "}
-                  <span className="text-[9px] font-extrabold uppercase">
-                    Pulang
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    getaranHalus();
-                    setTabAktif("keuangan");
-                    setCariMurid("");
-                  }}
-                  className={`flex-1 min-w-[64px] py-3 rounded-2xl flex flex-col items-center transition-all ${tabAktif === "keuangan" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
-                >
-                  <BankCard size={26} className="mb-1" strokeWidth={3} />{" "}
-                  <span className="text-[9px] font-extrabold uppercase">
-                    SPP
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    getaranHalus();
-                    setTabAktif("laporan");
-                    setCariMurid("");
-                  }}
-                  className={`flex-1 min-w-[64px] py-3 rounded-2xl flex flex-col items-center transition-all ${tabAktif === "laporan" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
-                >
-                  <ChartLine size={26} className="mb-1" strokeWidth={3} />{" "}
-                  <span className="text-[9px] font-extrabold uppercase">
-                    Laporan
-                  </span>
-                </button>
+              />
+              <div className="flex-1 overflow-y-auto px-6 pt-6 pb-[180px] hide-scrollbar relative">
+                {tabAktif !== "laporan" && (
+                  <SearchBar
+                    cariMurid={cariMurid}
+                    onCariChange={setCariMurid}
+                    onClear={() => {
+                      getaranHalus();
+                      setCariMurid("");
+                    }}
+                  />
+                )}
+                {tabAktif === "datang" && (
+                  <TabDatang
+                    muridBelumHadirFilter={muridBelumHadirFilter}
+                    onChat={bukaChatPersonal}
+                    onDatang={handleDatang}
+                    renderFoto={renderFotoMurid}
+                  />
+                )}
+                {tabAktif === "kegiatan" && (
+                  <TabKegiatan
+                    muridHadirFilter={muridHadirFilter}
+                    statusDailySheetHarian={statusDailySheetHarian}
+                    pilihanAnak={pilihanAnak}
+                    onPilihAnak={setPilihanAnak}
+                    labelAktivitas={labelAktivitas}
+                    onPilihLabel={handlePilihLabel}
+                    jenisKegiatan={jenisKegiatan}
+                    onJenisChange={setJenisKegiatan}
+                    onFotoChange={setFotoAktivitas}
+                    dailyMakan={dailyMakan}
+                    onMakanChange={setDailyMakan}
+                    dailyTidurMulai={dailyTidurMulai}
+                    onTidurMulaiChange={setDailyTidurMulai}
+                    dailyTidurSelesai={dailyTidurSelesai}
+                    onTidurSelesaiChange={setDailyTidurSelesai}
+                    dailyMood={dailyMood}
+                    onMoodChange={setDailyMood}
+                    isSaving={isSaving}
+                    onSimpan={simpanKegiatanMassal}
+                    onGetaran={getaranHalus}
+                    renderFoto={renderFotoMurid}
+                  />
+                )}
+                {tabAktif === "pulang" && (
+                  <TabPulang
+                    muridHadirFilter={muridHadirFilter}
+                    penjemput={penjemput}
+                    penjemputCustom={penjemputCustom}
+                    ketPenjemput={ketPenjemput}
+                    onChat={bukaChatPersonal}
+                    onPulang={handlePulang}
+                    onPenjemputChange={(id, val) =>
+                      setPenjemput((prev) => ({ ...prev, [id]: val }))
+                    }
+                    onPenjemputCustomChange={(id, val) =>
+                      setPenjemputCustom((prev) => ({ ...prev, [id]: val }))
+                    }
+                    onKetChange={(id, val) =>
+                      setKetPenjemput((prev) => ({ ...prev, [id]: val }))
+                    }
+                    renderFoto={renderFotoMurid}
+                  />
+                )}
+                {tabAktif === "keuangan" && (
+                  <TabKeuangan
+                    muridSemuaFilter={muridSemuaFilter}
+                    dapatkanStatusSpp={dapatkanStatusSpp}
+                    handleResetDanTagihSppMassal={handleResetDanTagihSppMassal}
+                    isResettingSpp={isResettingSpp}
+                    showUploadObj={showUploadObj}
+                    strukFileObj={strukFileObj}
+                    isUploadingStrukObj={isUploadingStrukObj}
+                    setShowUploadObj={setShowUploadObj}
+                    setStrukFileObj={setStrukFileObj}
+                    setIsUploadingStrukObj={setIsUploadingStrukObj}
+                    bukaChatPersonal={bukaChatPersonal}
+                    renderFoto={renderFotoMurid}
+                    supabase={supabase}
+                    setStatusSppDinamis={setStatusSppDinamis}
+                  />
+                )}
+                {tabAktif === "laporan" && (
+                  <TabLaporan
+                    subTabLaporan={subTabLaporan}
+                    onSubTabChange={setSubTabLaporan}
+                    muridSemuaFilter={muridSemuaFilter}
+                    selectedStudentReport={selectedStudentReport}
+                    onSelectStudent={(anak) =>
+                      setSelectedStudentReport(
+                        selectedStudentReport?.id === anak.id ? null : anak,
+                      )
+                    }
+                    statusAnak={statusAnak}
+                    logKegiatan={logKegiatan}
+                    statusDailySheetHarian={statusDailySheetHarian}
+                    weeklyOffset={weeklyOffset}
+                    onWeeklyOffsetChange={setWeeklyOffset}
+                    fetchWeeklyReportForChild={fetchWeeklyReportForChild}
+                    weeklyData={weeklyData}
+                    isLoadingWeekly={isLoadingWeekly}
+                    renderFoto={renderFotoMurid}
+                    getWeekRange={getWeekRange}
+                  />
+                )}
               </div>
+              <BottomNav
+                tabAktif={tabAktif}
+                onTabChange={(tab) => {
+                  getaranHalus();
+                  setTabAktif(tab);
+                  setCariMurid("");
+                }}
+              />
             </div>
           )}
+
+          <ChatModal
+            chatPersonalAktif={chatPersonalAktif}
+            teksChatPersonal={teksChatPersonal}
+            isMengirimChat={isMengirimChat}
+            onTutup={() => setChatPersonalAktif(null)}
+            onKirim={handleKirimChatPersonal}
+            onUbahTeks={setTeksChatPersonal}
+          />
+          <BroadcastModal
+            bukaSiaran={bukaSiaran}
+            tipeSiaran={tipeSiaran}
+            teksSiaran={teksSiaran}
+            isBroadcasting={isBroadcasting}
+            onTutup={() => {
+              getaranHalus();
+              setBukaSiaran(false);
+            }}
+            onUbahTeks={setTeksSiaran}
+            onPilihTipe={(tipe, template) => {
+              getaranHalus();
+              setTipeSiaran(tipe);
+              setTeksSiaran(template);
+            }}
+            onKirim={handleKirimSiaran}
+            templateUmum={TEMPLATE_PESAN.umum}
+            templateSpp={TEMPLATE_PESAN.spp}
+          />
+
+          <button
+            onClick={() => {
+              getaranHalus();
+              setBukaSiaran(true);
+            }}
+            className="absolute bottom-[120px] right-6 bg-orange-400 text-white w-16 h-16 rounded-full shadow-[0_15px_35px_rgba(251,146,60,0.4)] hover:bg-orange-500 active:scale-90 z-30 transition-all flex items-center justify-center btn-premium"
+          >
+            <VolumeNotice
+              theme="outline"
+              size={30}
+              strokeWidth={3}
+              fill="#fff"
+            />
+          </button>
         </div>
       </div>
     </>

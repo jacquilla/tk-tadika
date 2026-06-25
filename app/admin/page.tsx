@@ -17,6 +17,7 @@ export default function AdminPage() {
   const [namaBaru, setNamaBaru] = useState("");
   const [kelasBaru, setKelasBaru] = useState("mawar");
   const [noHpBaru, setNoHpBaru] = useState("");
+  const [nominalBaru, setNominalBaru] = useState("350000");
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -54,8 +55,8 @@ export default function AdminPage() {
   };
 
   const tambahMurid = async () => {
-    if (!namaBaru.trim() || !noHpBaru.trim())
-      return alert("Isi nama dan nomor HP!");
+    if (!namaBaru.trim() || !noHpBaru.trim() || !nominalBaru.trim())
+      return alert("Isi nama, nomor HP, dan nominal SPP!");
     let fotoUrl = "";
     if (fotoFile) {
       setUploading(true);
@@ -87,12 +88,14 @@ export default function AdminPage() {
         nama: namaBaru,
         kelas: kelasBaru,
         nomor_hp_ortu: noHpBaru,
+        nominal_spp: parseInt(nominalBaru) || 350000,
         status_spp: "LUNAS",
         foto_url: fotoUrl || null,
       },
     ]);
     setNamaBaru("");
     setNoHpBaru("");
+    setNominalBaru("350000");
     setFotoFile(null);
     ambilData();
   };
@@ -121,7 +124,7 @@ export default function AdminPage() {
           __html: `
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif; background: #F8FAFC; }
-        .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .glass-panel { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
         .fade-in { animation: fadeIn 0.5s ease-out forwards; }
         .slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
         @keyframes slideUp { 0% { opacity: 0; transform: translateY(40px); } 100% { opacity: 1; transform: translateY(0); } }
@@ -182,20 +185,12 @@ export default function AdminPage() {
             </div>
 
             {/* Ringkasan */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="glass-panel p-4 rounded-2xl shadow-md text-center slide-up">
                 <p className="text-xs text-slate-500">Total Murid</p>
                 <p className="text-2xl font-extrabold text-slate-800">
                   {totalMurid}
                 </p>
-              </div>
-              <div className="flex justify-end mb-8">
-                <a
-                  href="/api/export"
-                  className="bg-emerald-500 text-white font-extrabold py-3 px-6 rounded-2xl shadow-lg shadow-emerald-200 active:scale-95 transition-all btn-premium text-sm flex items-center gap-2"
-                >
-                  📥 Unduh Laporan Excel
-                </a>
               </div>
               <div
                 className="glass-panel p-4 rounded-2xl shadow-md text-center slide-up"
@@ -217,6 +212,16 @@ export default function AdminPage() {
               </div>
             </div>
 
+            {/* Tombol Unduh dipindahkan ke luar grid */}
+            <div className="flex justify-end mb-8">
+              <a
+                href="/api/export"
+                className="bg-emerald-500 text-white font-extrabold py-3 px-6 rounded-2xl shadow-lg shadow-emerald-200 active:scale-95 transition-all btn-premium text-sm flex items-center gap-2"
+              >
+                📥 Unduh Laporan Excel
+              </a>
+            </div>
+
             {/* Tambah Murid */}
             <div className="glass-panel p-6 rounded-[2rem] shadow-md mb-8 slide-up">
               <h2 className="text-lg font-extrabold mb-4 text-slate-800">
@@ -226,20 +231,27 @@ export default function AdminPage() {
                 <input
                   type="text"
                   placeholder="Nama Murid"
-                  className="w-full p-4 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400"
+                  className="w-full p-4 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400 text-slate-700"
                   value={namaBaru}
                   onChange={(e) => setNamaBaru(e.target.value)}
                 />
                 <input
                   type="text"
                   placeholder="Nomor HP Orang Tua"
-                  className="w-full p-4 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400"
+                  className="w-full p-4 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400 text-slate-700"
                   value={noHpBaru}
                   onChange={(e) => setNoHpBaru(e.target.value)}
                 />
+                <input
+                  type="number"
+                  placeholder="Nominal SPP (contoh: 350000)"
+                  className="w-full p-4 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400 text-slate-700"
+                  value={nominalBaru}
+                  onChange={(e) => setNominalBaru(e.target.value)}
+                />
                 <div className="flex gap-2 items-center">
                   <select
-                    className="flex-1 p-4 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400"
+                    className="flex-1 p-4 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400 text-slate-700"
                     value={kelasBaru}
                     onChange={(e) => setKelasBaru(e.target.value)}
                   >

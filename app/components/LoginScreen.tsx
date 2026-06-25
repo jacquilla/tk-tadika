@@ -1,0 +1,136 @@
+import Image from "next/image";
+import { Loading, Login } from "@icon-park/react";
+
+interface LoginScreenProps {
+  isLoading: boolean;
+  pinLogin: string;
+  loginError: string;
+  isCheckingPin: boolean;
+  onPinChange: (value: string) => void;
+  onLogin: () => void;
+}
+
+export default function LoginScreen({
+  isLoading,
+  pinLogin,
+  loginError,
+  isCheckingPin,
+  onPinChange,
+  onLogin,
+}: LoginScreenProps) {
+  return (
+    <div className="flex-1 flex flex-col p-6 bg-white/95 fade-in relative">
+      {/* Logo & Nama Sekolah */}
+      <div className="w-full pt-10 pb-6 flex justify-center">
+        <div className="w-24 h-24 relative">
+          <Image
+            src="/piasmart.png"
+            alt="PiaSmart"
+            fill
+            sizes="96px"
+            priority
+            className="object-contain opacity-95 drop-shadow-md"
+          />
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center w-full">
+        <div className="w-full text-center">
+          <div className="relative inline-block mb-6">
+            <div className="absolute inset-0 bg-indigo-200 blur-2xl rounded-full opacity-30"></div>
+            <img
+              src="logo-tk.jpeg"
+              alt="Logo TK"
+              className="relative w-28 h-28 mx-auto shadow-xl rounded-[2rem] border-4 border-white object-cover"
+              onError={(e) => {
+                e.currentTarget.src =
+                  "https://ui-avatars.com/api/?name=TK&background=EEF2FF&color=4F46E5&rounded=false&size=128";
+              }}
+            />
+          </div>
+          <h1 className="text-2xl font-extrabold text-slate-800 mb-1 tracking-tight">
+            TK Tadika Mesra
+          </h1>
+          <p className="text-slate-500 font-semibold mb-10 text-[10px] tracking-widest uppercase">
+            Portal Guru Digital
+          </p>
+
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center text-indigo-400 space-y-4 mb-8">
+              <Loading
+                theme="outline"
+                size={36}
+                strokeWidth={4}
+                fill="currentColor"
+                className="animate-spin"
+              />
+              <span className="text-sm font-semibold text-slate-500">
+                Menghubungkan ke server...
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="relative mb-4 w-full max-w-[300px] mx-auto">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="Masukkan PIN"
+                  className="w-full py-3 bg-slate-50 border-2 border-slate-50 rounded-xl text-center text-xl font-bold tracking-widest outline-none focus:border-indigo-400 transition-all placeholder:text-slate-300 text-slate-700"
+                  value={pinLogin}
+                  onChange={(e) =>
+                    onPinChange(e.target.value.replace(/\D/g, ""))
+                  }
+                  autoFocus
+                />
+              </div>
+              {loginError && (
+                <p className="text-rose-500 text-xs font-bold mb-4">
+                  {loginError}
+                </p>
+              )}
+              <div className="w-full max-w-[300px] mx-auto">
+                <button
+                  disabled={isLoading || isCheckingPin}
+                  onClick={onLogin}
+                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-extrabold py-3 rounded-2xl text-sm active:scale-[0.97] transition-all disabled:opacity-50 shadow-xl shadow-indigo-200 btn-premium flex justify-center items-center gap-3"
+                >
+                  {isCheckingPin ? (
+                    <Loading
+                      theme="outline"
+                      size={22}
+                      strokeWidth={4}
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <Login
+                      theme="outline"
+                      size={22}
+                      strokeWidth={4}
+                      fill="currentColor"
+                    />
+                  )}
+                  <span>Masuk</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="w-full pb-4 flex flex-col items-center justify-center opacity-60">
+        <span className="text-[8px] text-slate-500 font-bold tracking-widest mb-2 uppercase">
+          Powered By
+        </span>
+        <div className="w-16 aspect-[5/7] relative">
+          <Image
+            src="/logo-digi.png"
+            alt="Digi.ID"
+            fill
+            sizes="64px"
+            priority
+            className="object-contain grayscale opacity-60"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
