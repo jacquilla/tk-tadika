@@ -84,6 +84,9 @@ const getWeekRange = (offset: number = 0) => {
 export default function AppTK() {
   const [tampilan, setTampilan] = useState("login");
   const [namaGuru, setNamaGuru] = useState("");
+  const [pinLogin, setPinLogin] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [isCheckingPin, setIsCheckingPin] = useState(false);
   const [kelasAktif, setKelasAktif] = useState("");
   const [tabAktif, setTabAktif] = useState("datang");
   const [subTabLaporan, setSubTabLaporan] = useState<"harian" | "mingguan">(
@@ -108,6 +111,8 @@ export default function AppTK() {
   const [logKegiatan, setLogKegiatan] = useState<Record<string, any[]>>({});
   const [pilihanAnak, setPilihanAnak] = useState<string[]>([]);
   const [jenisKegiatan, setJenisKegiatan] = useState("");
+
+  const [labelAktivitas, setLabelAktivitas] = useState("");
 
   const [dailyMakan, setDailyMakan] = useState("");
   const [dailyTidurMulai, setDailyTidurMulai] = useState("");
@@ -277,6 +282,34 @@ export default function AppTK() {
   const dapatkanStatusSpp = (anak: any) =>
     statusSppDinamis[anak.id] || anak.status_spp || "LUNAS";
 
+  const handleLogin = async () => {
+    if (!pinLogin.trim()) {
+      setLoginError("Masukkan PIN terlebih dahulu.");
+      return;
+    }
+    setIsCheckingPin(true);
+    setLoginError("");
+    try {
+      const { data, error } = await supabase
+        .from("guru")
+        .select("nama")
+        .eq("pin", pinLogin.trim())
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        setLoginError("PIN tidak dikenali. Coba lagi.");
+        setIsCheckingPin(false);
+        return;
+      }
+      setNamaGuru(data.nama);
+      setTampilan("kelas");
+    } catch (err) {
+      setLoginError("Gagal memeriksa PIN. Periksa koneksi.");
+    } finally {
+      setIsCheckingPin(false);
+    }
+  };
+
   // ---------- FUNGSI BISNIS ----------
   const toggleSpp = async (idAnak: string, statusSaatIni: string) => {
     getaranHalus();
@@ -436,7 +469,20 @@ export default function AppTK() {
     }
   };
 
-  // ✅ Simpan kegiatan tanpa kirim WA
+  const handlePilihLabel = (label: string) => {
+    setLabelAktivitas(label);
+    const templates: Record<string, string> = {
+      motorik: "🏃 Melatih motorik melalui: ",
+      kognitif: "🧠 Mengasah kognitif dengan: ",
+      sosial: "💬 Belajar sosial-emosional lewat: ",
+    };
+    if (label && templates[label]) {
+      setJenisKegiatan(templates[label]);
+    } else {
+      setJenisKegiatan("");
+    }
+  };
+
   const simpanKegiatanMassal = async () => {
     getaranHalus();
     if (pilihanAnak.length === 0) return alert("Pilih minimal 1 anak!");
@@ -509,11 +555,11 @@ export default function AppTK() {
     setDailyTidurSelesai("");
     setDailyMood("");
     setFotoAktivitas(null);
+    setLabelAktivitas("");
     setIsSaving(false);
     alert("Jurnal & Foto berhasil disimpan! (akan dirangkum saat pulang)");
   };
 
-  // ✅ Pulang → rangkuman lengkap + kirim WA
   const handlePulang = async (anak: any) => {
     getaranHalus();
     const dropdownValue = penjemput[anak.id] || "Orang Tua";
@@ -581,10 +627,79 @@ export default function AppTK() {
   };
 
   const handleKirimSiaran = async () => {
-    /* ... tidak berubah ... */
+    getaranHalus();
+    if (!teksSiaran.trim()) return alert("Pesan tidak boleh kosong!");
+    setIsBroadcasting(true);
+    try {
+      let targetPenerima = muridSemua;
+      if (tipeSiaran === "spp") {
+        targetPenerima = muridSemua.filter(
+          (anak) => dapatkanStatusSpp(anak) === "MENUNGGAK",
+        );
+        if (targetPenerima.length === 0) {
+          alert("Semua orang tua di kelas ini sudah lunas SPP.");
+          setIsBroadcasting(false);
+          setBukaSiaran(false);
+          return;
+        }
+      }
+      for (const anak of targetPenerima) {
+        await kirimWA(
+          anak.nomor_hp_ortu,
+          `📢 *PENGUMUMAN KELAS*\n\n${teksSiaran}`,
+        );
+      }
+      alert("Siaran berhasil terkirim!");
+    } catch (err) {
+      alert("Terjadi kesalahan saat mengirim siaran.");
+    } finally {
+      setIsBroadcasting(false);
+      setBukaSiaran(false);
+    }
   };
+
   const fetchWeeklyReportForChild = async (anak: any) => {
-    /* ... tidak berubah ... */
+    setIsLoadingWeekly(true);
+    setSelectedStudentReport(anak);
+    const { start, end } = getWeekRange(weeklyOffset);
+    try {
+      const { data: hadirData, error: hadirError } = await supabase
+        .from("kehadiran")
+        .select("*")
+        .eq("murid_id", anak.id)
+        .gte("tanggal", start)
+        .lte("tanggal", end)
+        .order("tanggal");
+      if (hadirError) throw hadirError;
+      const { data: logData, error: logError } = await supabase
+        .from("log_aktivitas")
+        .select("*")
+        .eq("murid_id", anak.id)
+        .gte("created_at", `${start}T00:00:00`)
+        .lte("created_at", `${end}T23:59:59`);
+      if (logError) throw logError;
+      const dailyMap: Record<string, any> = {};
+      for (
+        let d = new Date(start);
+        d <= new Date(end);
+        d.setDate(d.getDate() + 1)
+      ) {
+        const dateStr = d.toISOString().split("T")[0];
+        dailyMap[dateStr] = { hadir: null, kegiatan: [] };
+      }
+      hadirData?.forEach((h: any) => {
+        if (dailyMap[h.tanggal]) dailyMap[h.tanggal].hadir = h;
+      });
+      logData?.forEach((l: any) => {
+        const dateStr = l.created_at.split("T")[0];
+        if (dailyMap[dateStr]) dailyMap[dateStr].kegiatan.push(l);
+      });
+      setWeeklyData({ anak, dailyMap, start, end });
+    } catch (err) {
+      alert("Gagal memuat laporan mingguan.");
+    } finally {
+      setIsLoadingWeekly(false);
+    }
   };
 
   const SearchBar = () => (
@@ -629,7 +744,7 @@ export default function AppTK() {
     );
   };
 
-  // ---------- UI (dipadatkan tanpa mengubah tampilan) ----------
+  // ---------- UI ----------
   return (
     <>
       <style
@@ -672,6 +787,7 @@ export default function AppTK() {
                     src="/piasmart.png"
                     alt="PiaSmart"
                     fill
+                    sizes="96px"
                     priority
                     className="object-contain opacity-95 drop-shadow-md"
                   />
@@ -684,7 +800,7 @@ export default function AppTK() {
                     <img
                       src="logo-tk.jpeg"
                       alt="Logo TK"
-                      className="relative w-32 h-32 mx-auto shadow-xl rounded-[2rem] border-4 border-white object-cover"
+                      className="relative w-28 h-28 mx-auto shadow-xl rounded-[2rem] border-4 border-white object-cover"
                       onError={(e) => {
                         e.currentTarget.src =
                           "https://ui-avatars.com/api/?name=TK&background=EEF2FF&color=4F46E5&rounded=false&size=128";
@@ -697,6 +813,7 @@ export default function AppTK() {
                   <p className="text-slate-500 font-semibold mb-10 text-[10px] tracking-widest uppercase">
                     Portal Guru Digital
                   </p>
+
                   {isLoading ? (
                     <div className="flex flex-col items-center justify-center text-indigo-400 space-y-4 mb-8">
                       <Loading
@@ -711,44 +828,52 @@ export default function AppTK() {
                       </span>
                     </div>
                   ) : (
-                    <div className="relative mb-8 w-full max-w-[300px] mx-auto">
-                      <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-slate-400">
-                        <User
-                          theme="outline"
-                          size={22}
-                          strokeWidth={3}
-                          fill="currentColor"
+                    <>
+                      <div className="relative mb-4 w-full max-w-[300px] mx-auto">
+                        <input
+                          type="password"
+                          inputMode="numeric"
+                          maxLength={6}
+                          placeholder="Masukkan PIN"
+                          className="w-full py-3 bg-slate-50 border-2 border-slate-50 rounded-xl text-center text-xl font-bold tracking-widest outline-none focus:border-indigo-400 transition-all placeholder:text-slate-300 text-slate-700"
+                          value={pinLogin}
+                          onChange={(e) =>
+                            setPinLogin(e.target.value.replace(/\D/g, ""))
+                          }
+                          autoFocus
                         />
                       </div>
-                      <input
-                        type="text"
-                        placeholder="Masukkan nama Anda"
-                        className="w-full pl-14 pr-5 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-indigo-400 outline-none text-slate-700 font-bold text-base transition-all placeholder:text-slate-400"
-                        value={namaGuru}
-                        onChange={(e) => setNamaGuru(e.target.value)}
-                      />
-                    </div>
+                      {loginError && (
+                        <p className="text-rose-500 text-xs font-bold mb-4">
+                          {loginError}
+                        </p>
+                      )}
+                      <div className="w-full max-w-[300px] mx-auto">
+                        <button
+                          disabled={isLoading || isCheckingPin}
+                          onClick={handleLogin}
+                          className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-extrabold py-3 rounded-2xl text-sm active:scale-[0.97] transition-all disabled:opacity-50 shadow-xl shadow-indigo-200 btn-premium flex justify-center items-center gap-3"
+                        >
+                          {isCheckingPin ? (
+                            <Loading
+                              theme="outline"
+                              size={22}
+                              strokeWidth={4}
+                              className="animate-spin"
+                            />
+                          ) : (
+                            <Login
+                              theme="outline"
+                              size={22}
+                              strokeWidth={4}
+                              fill="currentColor"
+                            />
+                          )}
+                          <span>Masuk</span>
+                        </button>
+                      </div>
+                    </>
                   )}
-                  <div className="w-full max-w-[300px] mx-auto">
-                    <button
-                      disabled={isLoading}
-                      onClick={() => {
-                        getaranHalus();
-                        namaGuru
-                          ? setTampilan("kelas")
-                          : alert("Isi nama dulu!");
-                      }}
-                      className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-extrabold py-5 rounded-2xl text-base active:scale-[0.97] transition-all disabled:opacity-50 shadow-xl shadow-indigo-200 btn-premium flex justify-center items-center gap-3"
-                    >
-                      Masuk Sistem{" "}
-                      <Login
-                        theme="outline"
-                        size={22}
-                        strokeWidth={4}
-                        fill="currentColor"
-                      />
-                    </button>
-                  </div>
                 </div>
               </div>
               <div className="w-full pb-4 flex flex-col items-center justify-center opacity-60">
@@ -760,6 +885,8 @@ export default function AppTK() {
                     src="/logo-digi.png"
                     alt="Digi.ID"
                     fill
+                    sizes="64px"
+                    priority
                     className="object-contain grayscale opacity-60"
                   />
                 </div>
@@ -1082,14 +1209,31 @@ export default function AppTK() {
                           })}
                         </div>
 
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
                           <MagicWand size={16} /> 2. Jurnal & Foto
                         </label>
+                        <div className="mb-3">
+                          <select
+                            className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-slate-700 text-xs font-bold outline-none focus:border-indigo-400 transition-all"
+                            value={labelAktivitas}
+                            onChange={(e) => handlePilihLabel(e.target.value)}
+                          >
+                            <option value="">
+                              ✨ Pilih label kegiatan (opsional)
+                            </option>
+                            <option value="motorik">🏃 Motorik</option>
+                            <option value="kognitif">🧠 Kognitif</option>
+                            <option value="sosial">💬 Sosial-Emosional</option>
+                          </select>
+                        </div>
                         <textarea
                           placeholder="Ketik aktivitas anak di sini..."
                           className="w-full min-h-[100px] p-4 bg-slate-50/80 border-2 border-slate-200 rounded-2xl mb-4 outline-none focus:border-indigo-400 text-slate-700 text-sm font-semibold resize-y placeholder:text-slate-400"
                           value={jenisKegiatan}
-                          onChange={(e) => setJenisKegiatan(e.target.value)}
+                          onChange={(e) => {
+                            setJenisKegiatan(e.target.value);
+                            setLabelAktivitas("");
+                          }}
                         />
                         <input
                           type="file"
@@ -1102,15 +1246,15 @@ export default function AppTK() {
                           className="block w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-indigo-50 file:text-indigo-600 mb-6"
                         />
 
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                          <Bowl size={16} /> 3. Daily Sheet Cepat
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <Bowl size={14} /> 3. Daily Sheet Cepat
                         </label>
-                        <div className="space-y-5 mb-6 bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                        <div className="space-y-4 mb-5 bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
                           <div>
-                            <p className="text-xs font-bold text-slate-600 mb-3 flex items-center gap-2">
-                              <Bowl theme="outline" size={18} /> Makan Siang
+                            <p className="text-[10px] font-bold text-slate-600 mb-2 flex items-center gap-1.5">
+                              <Bowl theme="outline" size={14} /> Makan Siang
                             </p>
-                            <div className="flex gap-3">
+                            <div className="flex gap-2">
                               {["Habis", "Setengah", "Tidak Mau"].map(
                                 (opsi) => (
                                   <button
@@ -1120,7 +1264,7 @@ export default function AppTK() {
                                         dailyMakan === opsi ? "" : opsi,
                                       )
                                     }
-                                    className={`flex-1 py-3 text-xs font-bold rounded-xl border active:scale-95 transition-all ${dailyMakan === opsi ? "bg-amber-100 border-amber-400 text-amber-800 shadow-sm" : "bg-white border-slate-200 text-slate-600"}`}
+                                    className={`flex-1 py-2 text-[10px] font-bold rounded-lg border active:scale-95 transition-all ${dailyMakan === opsi ? "bg-amber-100 border-amber-400 text-amber-800 shadow-sm" : "bg-white border-slate-200 text-slate-600"}`}
                                   >
                                     {opsi}
                                   </button>
@@ -1128,10 +1272,10 @@ export default function AppTK() {
                               )}
                             </div>
                           </div>
-                          <div className="flex gap-4">
+                          <div className="flex gap-3">
                             <div className="flex-1">
-                              <p className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-2">
-                                <SleepOne theme="outline" size={18} /> Tidur
+                              <p className="text-[10px] font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+                                <SleepOne theme="outline" size={14} /> Tidur
                                 Mulai
                               </p>
                               <input
@@ -1140,11 +1284,11 @@ export default function AppTK() {
                                 onChange={(e) =>
                                   setDailyTidurMulai(e.target.value)
                                 }
-                                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
+                                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-indigo-400"
                               />
                             </div>
                             <div className="flex-1">
-                              <p className="text-xs font-bold text-slate-600 mb-2">
+                              <p className="text-[10px] font-bold text-slate-600 mb-1.5">
                                 Selesai
                               </p>
                               <input
@@ -1153,16 +1297,15 @@ export default function AppTK() {
                                 onChange={(e) =>
                                   setDailyTidurSelesai(e.target.value)
                                 }
-                                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
+                                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-indigo-400"
                               />
                             </div>
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-slate-600 mb-3 flex items-center gap-2">
-                              <EmotionHappy theme="outline" size={18} /> Mood
-                              Anak
+                            <p className="text-[10px] font-bold text-slate-600 mb-2 flex items-center gap-1.5">
+                              <EmotionHappy theme="outline" size={14} /> Mood
                             </p>
-                            <div className="flex gap-3">
+                            <div className="flex gap-2">
                               {[
                                 {
                                   label: "Senang",
@@ -1190,9 +1333,9 @@ export default function AppTK() {
                                     onClick={() =>
                                       setDailyMood(isActive ? "" : m.label)
                                     }
-                                    className={`flex-1 py-3 text-sm rounded-xl border flex justify-center items-center gap-2 active:scale-95 transition-all ${isActive ? m.activeClass : "bg-white border-slate-200 text-slate-500 grayscale opacity-70"}`}
+                                    className={`flex-1 py-2 rounded-lg border flex justify-center items-center gap-1 active:scale-95 transition-all ${isActive ? m.activeClass : "bg-white border-slate-200 text-slate-500 grayscale opacity-70"}`}
                                   >
-                                    <span className="text-lg">{m.icon}</span>
+                                    <span className="text-sm">{m.icon}</span>
                                     <span className="text-[10px] font-bold uppercase tracking-wider">
                                       {m.label}
                                     </span>
@@ -1315,7 +1458,7 @@ export default function AppTK() {
                               size={22}
                               strokeWidth={4}
                               fill="currentColor"
-                            />
+                            />{" "}
                             <span>Pulangkan & Kirim Notif</span>
                           </button>
                         </div>
@@ -1428,7 +1571,6 @@ export default function AppTK() {
                         Mingguan
                       </button>
                     </div>
-                    {/* konten sama persis seperti sebelumnya, hanya disesuaikan warna background */}
                     {subTabLaporan === "harian" && (
                       <>
                         <p className="text-xs font-bold text-slate-500">
@@ -1875,7 +2017,7 @@ export default function AppTK() {
                   }}
                   className={`flex-1 min-w-[64px] py-3 rounded-2xl flex flex-col items-center transition-all ${tabAktif === "datang" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
                 >
-                  <CheckOne size={26} className="mb-1" strokeWidth={3} />
+                  <CheckOne size={26} className="mb-1" strokeWidth={3} />{" "}
                   <span className="text-[9px] font-extrabold uppercase">
                     Tiba
                   </span>
@@ -1888,7 +2030,7 @@ export default function AppTK() {
                   }}
                   className={`flex-1 min-w-[64px] py-3 rounded-2xl flex flex-col items-center transition-all ${tabAktif === "kegiatan" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
                 >
-                  <Box size={26} className="mb-1" strokeWidth={3} />
+                  <Box size={26} className="mb-1" strokeWidth={3} />{" "}
                   <span className="text-[9px] font-extrabold uppercase">
                     Aktivitas
                   </span>
@@ -1901,7 +2043,7 @@ export default function AppTK() {
                   }}
                   className={`flex-1 min-w-[64px] py-3 rounded-2xl flex flex-col items-center transition-all ${tabAktif === "pulang" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
                 >
-                  <Logout size={26} className="mb-1" strokeWidth={3} />
+                  <Logout size={26} className="mb-1" strokeWidth={3} />{" "}
                   <span className="text-[9px] font-extrabold uppercase">
                     Pulang
                   </span>
@@ -1914,7 +2056,7 @@ export default function AppTK() {
                   }}
                   className={`flex-1 min-w-[64px] py-3 rounded-2xl flex flex-col items-center transition-all ${tabAktif === "keuangan" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
                 >
-                  <BankCard size={26} className="mb-1" strokeWidth={3} />
+                  <BankCard size={26} className="mb-1" strokeWidth={3} />{" "}
                   <span className="text-[9px] font-extrabold uppercase">
                     SPP
                   </span>
@@ -1927,7 +2069,7 @@ export default function AppTK() {
                   }}
                   className={`flex-1 min-w-[64px] py-3 rounded-2xl flex flex-col items-center transition-all ${tabAktif === "laporan" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
                 >
-                  <ChartLine size={26} className="mb-1" strokeWidth={3} />
+                  <ChartLine size={26} className="mb-1" strokeWidth={3} />{" "}
                   <span className="text-[9px] font-extrabold uppercase">
                     Laporan
                   </span>
