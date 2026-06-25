@@ -69,7 +69,7 @@ export default function LoginScreen({
             </div>
           ) : (
             <>
-              <div className="relative mb-4 w-full max-w-[300px] mx-auto">
+              <div className="relative mb-4 w-full max-w-75 mx-auto">
                 <input
                   type="password"
                   inputMode="numeric"
@@ -88,11 +88,11 @@ export default function LoginScreen({
                   {loginError}
                 </p>
               )}
-              <div className="w-full max-w-[300px] mx-auto">
+              <div className="w-full max-w-75 mx-auto">
                 <button
                   disabled={isLoading || isCheckingPin}
                   onClick={onLogin}
-                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-extrabold py-3 rounded-2xl text-sm active:scale-[0.97] transition-all disabled:opacity-50 shadow-xl shadow-indigo-200 btn-premium flex justify-center items-center gap-3"
+                  className="w-full bg-linear-to-r from-indigo-500 to-purple-500 text-white font-extrabold py-3 rounded-2xl text-sm active:scale-[0.97] transition-all disabled:opacity-50 shadow-xl shadow-indigo-200 btn-premium flex justify-center items-center gap-3"
                 >
                   {isCheckingPin ? (
                     <Loading

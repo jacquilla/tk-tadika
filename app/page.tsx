@@ -40,11 +40,11 @@ const getTanggalLokal = () => {
   return d.toISOString().split("T")[0];
 };
 
-const getAwalHariWITA = () => {
-  // WITA = UTC+8, jadi awal hari WITA = (hari ini UTC) - 8 jam
-  const d = new Date();
-  d.setHours(d.getHours() + 8, 0, 0, 0); // set ke 00:00 WITA, lalu konversi ke UTC
-  return d.toISOString();
+const getRangeHariWITA = (): { start: string; end: string } => {
+  const tanggalLokal = getTanggalLokal(); // "YYYY-MM-DD" sesuai WITA
+  const start = new Date(`${tanggalLokal}T00:00:00+08:00`).toISOString();
+  const end = new Date(`${tanggalLokal}T23:59:59+08:00`).toISOString();
+  return { start, end };
 };
 
 const getMulaiHariIniUTC = () => {
@@ -207,12 +207,14 @@ export default function AppTK() {
         }
 
         // ---------- DATA DAILY SHEET (untuk ikon) ----------
-        const awalHariWITA = getAwalHariWITA();
+        const { start: startWITA, end: endWITA } = getRangeHariWITA();
+
         const { data: logSheet, error: logSheetError } = await supabase
           .from("log_aktivitas")
           .select("murid_id, metadata")
           .eq("kategori", "DailySheet")
-          .gte("created_at", awalHariWITA);
+          .gte("created_at", startWITA)
+          .lt("created_at", endWITA);
 
         if (!logSheetError && logSheet) {
           const sheetMap: Record<string, any> = {};
@@ -235,7 +237,8 @@ export default function AppTK() {
         const { data: logHarianData, error: logHarianError } = await supabase
           .from("log_aktivitas")
           .select("*")
-          .gte("created_at", awalHariWITA);
+          .gte("created_at", startWITA)
+          .lt("created_at", endWITA);
 
         if (logHarianData) {
           const logMap: Record<string, any[]> = {};
@@ -264,6 +267,10 @@ export default function AppTK() {
             setStatusAnak((prev) => ({
               ...prev,
               [record.murid_id]: record.status_hadir,
+            }));
+            setKehadiranHarian((prev) => ({
+              ...prev,
+              [record.murid_id]: record,
             }));
           }
         },
@@ -544,6 +551,22 @@ export default function AppTK() {
     setLabelAktivitas("");
     setIsSaving(false);
     alert("Jurnal & Foto berhasil disimpan! (akan dirangkum saat pulang)");
+
+    // Refresh log harian agar laporan langsung terupdate
+    const { start: st, end: en } = getRangeHariWITA();
+    const { data: freshLog } = await supabase
+      .from("log_aktivitas")
+      .select("*")
+      .gte("created_at", st)
+      .lt("created_at", en);
+    if (freshLog) {
+      const logMap: Record<string, any[]> = {};
+      freshLog.forEach((l: any) => {
+        if (!logMap[l.murid_id]) logMap[l.murid_id] = [];
+        logMap[l.murid_id].push(l);
+      });
+      setLogHarian(logMap);
+    }
   };
 
   const handlePulang = async (anak: any) => {
