@@ -4,24 +4,34 @@ import sharp from "sharp";
 
 const SCOPES = ["https://www.googleapis.com/auth/drive.file"];
 
-// Buat OAuth2 client
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_DRIVE_CLIENT_ID,
-  process.env.GOOGLE_DRIVE_CLIENT_SECRET,
-  "http://localhost", // Redirect URI tidak penting untuk refresh token
-);
-
-// Set refresh token
-oauth2Client.setCredentials({
-  refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN,
-});
-
 export async function POST(request: Request) {
   try {
+    // Pastikan refresh token tersedia
+    if (!process.env.GOOGLE_DRIVE_REFRESH_TOKEN) {
+      return NextResponse.json(
+        { error: "Refresh token tidak ditemukan di environment variables." },
+        { status: 500 },
+      );
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_DRIVE_CLIENT_ID,
+      process.env.GOOGLE_DRIVE_CLIENT_SECRET,
+      "http://localhost", // redirect URI tidak penting untuk refresh token
+    );
+
+    oauth2Client.setCredentials({
+      refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN,
+    });
+
+    // Paksa refresh access token (memastikan valid)
+    await oauth2Client.getAccessToken();
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
-    if (!file)
+    if (!file) {
       return NextResponse.json({ error: "Tidak ada file" }, { status: 400 });
+    }
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const compressed = await sharp(buffer)
@@ -29,7 +39,6 @@ export async function POST(request: Request) {
       .jpeg({ quality: 80 })
       .toBuffer();
 
-    // Gunakan oauth2Client langsung
     const drive = google.drive({ version: "v3", auth: oauth2Client });
 
     const fileMetadata = {
@@ -50,13 +59,10 @@ export async function POST(request: Request) {
 
     const fileId = createdFile.data.id!;
 
-    // Jadikan file publik
+    // Set file ke publik
     await drive.permissions.create({
       fileId: fileId,
-      requestBody: {
-        role: "reader",
-        type: "anyone",
-      },
+      requestBody: { role: "reader", type: "anyone" },
     });
 
     const imageUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
