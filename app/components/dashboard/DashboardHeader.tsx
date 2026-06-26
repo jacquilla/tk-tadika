@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Peoples, User, Left } from "@icon-park/react";
 
 interface Props {
@@ -15,8 +16,21 @@ export default function DashboardHeader({
     <div className="glass-panel z-40 sticky top-0 px-6 pt-12 pb-4 border-b border-white/40">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
+          {/* Logo PiaSmart – kecil dan elegan di sudut kiri */}
+          <div className="w-6 h-6 relative shrink-0">
+            <Image
+              src="/piasmart.png"
+              alt="PiaSmart"
+              fill
+              sizes="24px"
+              className="object-contain opacity-90"
+              priority
+            />
+          </div>
           <div
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg ${kelasAktif === "mawar" ? "bg-indigo-400" : "bg-teal-400"}`}
+            className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg ${
+              kelasAktif === "mawar" ? "bg-indigo-400" : "bg-teal-400"
+            }`}
           >
             <Peoples
               theme="outline"

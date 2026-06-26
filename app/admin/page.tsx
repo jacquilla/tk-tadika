@@ -180,23 +180,40 @@ export default function AdminPage() {
 
   const simpanTanggalBayar = async (bulan: number, tanggal: string | null) => {
     if (!iuranMurid) return;
-    if (!tanggal)
+    const muridId = iuranMurid.id;
+
+    // Simpan atau hapus data di tabel iuran_spp
+    if (!tanggal) {
       await supabase
         .from("iuran_spp")
         .delete()
-        .eq("murid_id", iuranMurid.id)
+        .eq("murid_id", muridId)
         .eq("tahun", tahunIuran)
         .eq("bulan", bulan);
-    else
+    } else {
       await supabase.from("iuran_spp").upsert([
         {
-          murid_id: iuranMurid.id,
+          murid_id: muridId,
           tahun: tahunIuran,
           bulan,
           tanggal_bayar: tanggal,
         },
       ]);
+    }
+
+    // Update state lokal kartu iuran
     setIuranData((prev) => ({ ...prev, [bulan]: tanggal }));
+
+    // === Sinkronisasi status LUNAS/MENUNGGAK ===
+    const bulanSekarang = new Date().getMonth() + 1; // 1‑12
+    if (bulan === bulanSekarang && tahunIuran === new Date().getFullYear()) {
+      const statusBaru = tanggal ? "LUNAS" : "MENUNGGAK";
+      await supabase
+        .from("murid")
+        .update({ status_spp: statusBaru })
+        .eq("id", muridId);
+      await ambilData();
+    }
   };
 
   // ---------- Buku Penghubung ----------
@@ -794,7 +811,7 @@ export default function AdminPage() {
           {/* ---------- BUKU ---------- */}
           {tabAdmin === "buku" && (
             <div className="glass-panel p-4 rounded-2xl slide-up">
-              <h2 className="text-lg font-extrabold mb-4">
+              <h2 className="text-lg font-extrabold mb-4 text-slate-800">
                 📖 Buku Penghubung
               </h2>
               <div className="space-y-3">
@@ -811,7 +828,9 @@ export default function AdminPage() {
                       }
                       className="w-8 h-8 rounded-lg"
                     />
-                    <span className="font-bold text-sm">{anak.nama}</span>
+                    <span className="font-bold text-sm text-slate-800">
+                      {anak.nama}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -822,7 +841,7 @@ export default function AdminPage() {
                   </h3>
                   <div className="text-xs space-y-1">
                     {bukuLog.map((l, i) => (
-                      <p key={i}>
+                      <p key={i} className="text-slate-700">
                         [
                         {new Date(l.created_at).toLocaleTimeString("id-ID", {
                           hour: "2-digit",
@@ -859,49 +878,67 @@ export default function AdminPage() {
           {/* ---------- SPP (Iuran + Riwayat) ---------- */}
           {tabAdmin === "riwayat" && (
             <div className="glass-panel p-4 rounded-2xl slide-up">
-              <h2 className="text-lg font-extrabold mb-4">💰 Iuran SPP</h2>
+              <h2 className="text-lg font-extrabold mb-4 text-slate-800">
+                💰 Iuran SPP
+              </h2>
+              {/* Kotak pencarian untuk daftar murid */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Cari murid..."
+                  className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400 text-slate-800 placeholder-slate-400"
+                  value={cariAdmin}
+                  onChange={(e) => setCariAdmin(e.target.value)}
+                />
+              </div>
               <div className="space-y-3">
-                {murid.map((anak) => (
-                  <div
-                    key={anak.id}
-                    className="flex items-center justify-between p-3 bg-white/80 rounded-2xl shadow-sm border border-white/60"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={
-                          anak.foto_url ||
-                          `https://ui-avatars.com/api/?name=${encodeURIComponent(anak.nama)}&background=EEF2FF&color=4F46E5&size=32`
-                        }
-                        className="w-8 h-8 rounded-lg"
-                      />
-                      <span className="font-bold text-sm">{anak.nama}</span>
-                    </div>
-                    <button
-                      onClick={() => ambilIuran(anak)}
-                      className="text-xs bg-indigo-50 text-indigo-600 font-bold px-3 py-1.5 rounded-xl active:scale-95 transition-all"
+                {murid
+                  .filter((anak) =>
+                    anak.nama.toLowerCase().includes(cariAdmin.toLowerCase()),
+                  )
+                  .map((anak) => (
+                    <div
+                      key={anak.id}
+                      className="flex items-center justify-between p-3 bg-white/80 rounded-2xl shadow-sm border border-white/60"
                     >
-                      Kartu Iuran
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={
+                            anak.foto_url ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(anak.nama)}&background=EEF2FF&color=4F46E5&size=32`
+                          }
+                          className="w-8 h-8 rounded-lg"
+                        />
+                        <span className="font-bold text-sm text-slate-800">
+                          {anak.nama}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => ambilIuran(anak)}
+                        className="text-xs bg-indigo-50 text-indigo-600 font-bold px-3 py-1.5 rounded-xl active:scale-95 transition-all"
+                      >
+                        Kartu Iuran
+                      </button>
+                    </div>
+                  ))}
               </div>
               <div className="mt-6">
-                <h3 className="text-base font-extrabold mb-3">
+                <h3 className="text-base font-extrabold mb-3 text-slate-800">
                   Riwayat Perubahan Status SPP
                 </h3>
                 {riwayatSpp.map((r) => (
                   <div
                     key={r.id}
-                    className="flex justify-between text-xs border-b border-slate-100 py-2"
+                    className="flex justify-between text-xs border-b border-slate-100 py-2 text-slate-700"
                   >
-                    <span className="font-bold">
+                    <span className="font-bold text-slate-800">
                       {(r.murid as any)?.nama || "-"}
                     </span>
                     <span>
                       {r.status_sebelum} → {r.status_sesudah}
                     </span>
                     <span>Rp {r.nominal?.toLocaleString("id-ID")}</span>
-                    <span className="text-slate-400">
+                    <span className="text-slate-600">
                       {new Date(r.created_at).toLocaleDateString("id-ID")}
                     </span>
                   </div>
@@ -913,15 +950,17 @@ export default function AdminPage() {
           {/* ---------- LOG ---------- */}
           {tabAdmin === "log" && (
             <div className="glass-panel p-4 rounded-2xl slide-up">
-              <h2 className="text-lg font-extrabold mb-4">📜 Log Admin</h2>
+              <h2 className="text-lg font-extrabold mb-4 text-slate-800">
+                📜 Log Admin
+              </h2>
               {logAdmin.map((l) => (
                 <div
                   key={l.id}
-                  className="flex justify-between text-xs border-b border-slate-100 py-2"
+                  className="flex justify-between text-xs border-b border-slate-100 py-2 text-slate-700"
                 >
-                  <span className="font-bold">{l.aksi}</span>
-                  <span className="text-slate-500">{l.detail}</span>
-                  <span className="text-slate-400">
+                  <span className="font-bold text-slate-800">{l.aksi}</span>
+                  <span>{l.detail}</span>
+                  <span className="text-slate-600">
                     {new Date(l.created_at).toLocaleString("id-ID")}
                   </span>
                 </div>
@@ -931,11 +970,12 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* ---------- MODAL KARTU IURAN ---------- */}
+      {/* ---------- MODAL KARTU IURAN (header sticky) ---------- */}
       {iuranMurid && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-lg flex items-center justify-center p-4 fade-in">
-          <div className="bg-white w-full max-w-sm p-6 rounded-[2rem] shadow-2xl slide-up max-h-[80vh] overflow-y-auto hide-scrollbar">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl slide-up flex flex-col max-h-[80vh]">
+            {/* Header sticky – tidak ikut scroll */}
+            <div className="flex justify-between items-center p-6 pb-4 sticky top-0 bg-white rounded-t-[2rem] z-10 border-b border-slate-100">
               <h2 className="text-xl font-extrabold text-slate-800">
                 🧾 Kartu Iuran {tahunIuran}
               </h2>
@@ -946,49 +986,56 @@ export default function AdminPage() {
                 ✕
               </button>
             </div>
-            <p className="text-sm font-bold text-slate-700 mb-4">
-              {iuranMurid.nama} · {iuranMurid.kelas}
-            </p>
-            <div className="space-y-2">
-              {NAMA_BULAN.map((nama, idx) => {
-                const bulan = idx + 1;
-                const sudahLunas = !!iuranData[bulan];
-                return (
-                  <div
-                    key={bulan}
-                    className={`flex items-center justify-between p-3 rounded-2xl border ${sudahLunas ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-100"}`}
-                  >
-                    <span className="text-sm font-bold text-slate-700 w-12">
-                      {nama}
-                    </span>
-                    {sudahLunas ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-emerald-700 font-bold">
-                          Lunas ·{" "}
-                          {new Date(iuranData[bulan]!).toLocaleDateString(
-                            "id-ID",
-                            { day: "numeric", month: "short" },
-                          )}
-                        </span>
-                        <button
-                          onClick={() => simpanTanggalBayar(bulan, null)}
-                          className="text-[10px] bg-rose-100 text-rose-600 px-2 py-1 rounded-lg font-bold active:scale-95"
-                        >
-                          Batal
-                        </button>
-                      </div>
-                    ) : (
-                      <input
-                        type="date"
-                        className="text-xs p-2 border border-slate-200 rounded-xl bg-white font-bold text-slate-700 outline-none focus:border-indigo-400"
-                        onChange={(e) =>
-                          simpanTanggalBayar(bulan, e.target.value || null)
-                        }
-                      />
-                    )}
-                  </div>
-                );
-              })}
+            {/* Area scroll */}
+            <div className="overflow-y-auto hide-scrollbar px-6 pb-6">
+              <p className="text-sm font-bold text-slate-700 mb-4">
+                {iuranMurid.nama} · {iuranMurid.kelas}
+              </p>
+              <div className="space-y-2">
+                {NAMA_BULAN.map((nama, idx) => {
+                  const bulan = idx + 1;
+                  const sudahLunas = !!iuranData[bulan];
+                  return (
+                    <div
+                      key={bulan}
+                      className={`flex items-center justify-between p-3 rounded-2xl border ${
+                        sudahLunas
+                          ? "bg-emerald-50 border-emerald-200"
+                          : "bg-slate-50 border-slate-100"
+                      }`}
+                    >
+                      <span className="text-sm font-bold text-slate-700 w-12">
+                        {nama}
+                      </span>
+                      {sudahLunas ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-emerald-700 font-bold">
+                            Lunas ·{" "}
+                            {new Date(iuranData[bulan]!).toLocaleDateString(
+                              "id-ID",
+                              { day: "numeric", month: "short" },
+                            )}
+                          </span>
+                          <button
+                            onClick={() => simpanTanggalBayar(bulan, null)}
+                            className="text-[10px] bg-rose-100 text-rose-600 px-2 py-1 rounded-lg font-bold active:scale-95"
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      ) : (
+                        <input
+                          type="date"
+                          className="text-xs p-2 border border-slate-200 rounded-xl bg-white font-bold text-slate-700 outline-none focus:border-indigo-400"
+                          onChange={(e) =>
+                            simpanTanggalBayar(bulan, e.target.value || null)
+                          }
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
