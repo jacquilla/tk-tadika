@@ -29,15 +29,15 @@ export default function TabDatang({
           className="bg-white/90 backdrop-blur p-5 rounded-[2rem] shadow-md border border-white/60 flex items-center justify-between slide-up"
           style={{ animationDelay: `${i * 0.06}s` }}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
             {renderFoto(
               anak,
               "w-16 h-16 rounded-2xl object-cover border-2 border-white shadow-sm",
             )}
-            <span className="font-bold text-slate-800 text-base">
+            <span className="font-bold text-slate-800 text-base truncate">
               {anak.nama}
             </span>
-          </div>
+          </div>{" "}
           <div className="flex items-center gap-2">
             <button
               onClick={() => onChat(anak)}

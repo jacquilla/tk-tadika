@@ -1,7 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
-
 import { supabase } from "../lib/supabase";
 
 const ADMIN_PIN = process.env.NEXT_PUBLIC_ADMIN_PIN || "0000";
@@ -99,7 +97,6 @@ export default function AdminPage() {
 
   const ambilData = async () => {
     const today = new Date().toISOString().split("T")[0];
-
     const { data: muridData } = await supabase
       .from("murid")
       .select("*")
@@ -114,27 +111,23 @@ export default function AdminPage() {
           .reduce((sum, m) => sum + (m.nominal_spp || 350000), 0),
       );
     }
-
     const { data: guruData } = await supabase
       .from("guru")
       .select("*")
       .order("nama");
     if (guruData) setGuru(guruData);
-
     const { data: logData } = await supabase
       .from("log_admin")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(50);
     if (logData) setLogAdmin(logData);
-
     const { data: riwayat } = await supabase
       .from("riwayat_spp")
       .select("*, murid(nama)")
       .order("created_at", { ascending: false })
       .limit(100);
     if (riwayat) setRiwayatSpp(riwayat);
-
     const { data: hadirData } = await supabase
       .from("kehadiran")
       .select("*, murid(nama, kelas)")
@@ -148,7 +141,6 @@ export default function AdminPage() {
         ).length,
       );
     }
-
     const labels: string[] = [];
     const values: number[] = [];
     for (let i = 6; i >= 0; i--) {
@@ -188,14 +180,14 @@ export default function AdminPage() {
 
   const simpanTanggalBayar = async (bulan: number, tanggal: string | null) => {
     if (!iuranMurid) return;
-    if (!tanggal) {
+    if (!tanggal)
       await supabase
         .from("iuran_spp")
         .delete()
         .eq("murid_id", iuranMurid.id)
         .eq("tahun", tahunIuran)
         .eq("bulan", bulan);
-    } else {
+    else
       await supabase.from("iuran_spp").upsert([
         {
           murid_id: iuranMurid.id,
@@ -204,7 +196,6 @@ export default function AdminPage() {
           tanggal_bayar: tanggal,
         },
       ]);
-    }
     setIuranData((prev) => ({ ...prev, [bulan]: tanggal }));
   };
 
@@ -403,22 +394,23 @@ export default function AdminPage() {
 
   return (
     <>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'); body{font-family:'Plus Jakarta Sans',sans-serif;background:#F8FAFC;} .glass-panel{background:rgba(255,255,255,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);} .fade-in{animation:fadeIn .5s ease-out forwards;} .slide-up{animation:slideUp .6s cubic-bezier(.16,1,.3,1) forwards;opacity:0;} @keyframes slideUp{0%{opacity:0;transform:translateY(40px)}100%{opacity:1;transform:translateY(0)}} @keyframes fadeIn{0%{opacity:0}100%{opacity:1}} .btn-premium{transition:all .25s cubic-bezier(.4,0,.2,1);box-shadow:0 4px 12px rgba(0,0,0,.04),0 2px 6px rgba(0,0,0,.02)} .btn-premium:active{transform:scale(.96)} .btn-premium:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(0,0,0,.08)}`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'); body{font-family:'Plus Jakarta Sans',sans-serif;background:#F8FAFC;} .glass-panel{background:rgba(255,255,255,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);} .fade-in{animation:fadeIn .5s ease-out forwards;} .slide-up{animation:slideUp .6s cubic-bezier(.16,1,.3,1) forwards;opacity:0;} @keyframes slideUp{0%{opacity:0;transform:translateY(40px)}100%{opacity:1;transform:translateY(0)}} @keyframes fadeIn{0%{opacity:0}100%{opacity:1}} .btn-premium{transition:all .25s cubic-bezier(.4,0,.2,1);box-shadow:0 4px 12px rgba(0,0,0,.04),0 2px 6px rgba(0,0,0,.02)} .btn-premium:active{transform:scale(.96)} .btn-premium:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(0,0,0,.08)} .no-scrollbar::-webkit-scrollbar{display:none} .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`}</style>
 
       <div className="min-h-screen bg-slate-50/80 p-4 fade-in">
         <div className="max-w-lg mx-auto">
-          {/* Header & Tabs */}
+          {/* Header */}
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-extrabold text-slate-800">🏫 Admin</h1>
             <button
               onClick={() => setAutentikasi(false)}
-              className="text-slate-500 font-bold"
+              className="text-slate-600 font-bold hover:text-slate-800"
             >
               Logout
             </button>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto hide-scrollbar mb-6 pb-2">
+          {/* Tabs */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-2">
             {[
               { id: "utama", label: "📊 Utama" },
               { id: "kehadiran", label: "👥 Hadir" },
@@ -429,19 +421,20 @@ export default function AdminPage() {
               <button
                 key={t.id}
                 onClick={() => setTabAdmin(t.id as any)}
-                className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold whitespace-nowrap transition-all ${tabAdmin === t.id ? "bg-white shadow text-indigo-600" : "text-slate-500"}`}
+                className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold whitespace-nowrap transition-all ${tabAdmin === t.id ? "bg-white shadow text-indigo-600" : "text-slate-600"}`}
               >
                 {t.label}
               </button>
             ))}
           </div>
 
-          {/* ---------- UTAMA ---------- */}
+          {/* ========== TAB UTAMA ========== */}
           {tabAdmin === "utama" && (
             <div className="space-y-6">
+              {/* Ringkasan */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="glass-panel p-4 rounded-2xl text-center slide-up">
-                  <p className="text-xs text-slate-500">Total Murid</p>
+                  <p className="text-xs text-slate-600">Total Murid</p>
                   <p className="text-2xl font-extrabold text-slate-800">
                     {totalMurid}
                   </p>
@@ -450,7 +443,7 @@ export default function AdminPage() {
                   className="glass-panel p-4 rounded-2xl text-center slide-up"
                   style={{ animationDelay: "0.1s" }}
                 >
-                  <p className="text-xs text-slate-500">Hadir Hari Ini</p>
+                  <p className="text-xs text-slate-600">Hadir Hari Ini</p>
                   <p className="text-2xl font-extrabold text-emerald-600">
                     {totalHadir}
                   </p>
@@ -459,7 +452,7 @@ export default function AdminPage() {
                   className="glass-panel p-4 rounded-2xl text-center slide-up"
                   style={{ animationDelay: "0.2s" }}
                 >
-                  <p className="text-xs text-slate-500">SPP Lunas</p>
+                  <p className="text-xs text-slate-600">SPP Lunas</p>
                   <p className="text-2xl font-extrabold text-indigo-600">
                     {totalLunas}/{totalMurid}
                   </p>
@@ -468,15 +461,16 @@ export default function AdminPage() {
                   className="glass-panel p-4 rounded-2xl text-center slide-up"
                   style={{ animationDelay: "0.3s" }}
                 >
-                  <p className="text-xs text-slate-500">Piutang SPP</p>
+                  <p className="text-xs text-slate-600">Piutang SPP</p>
                   <p className="text-lg font-extrabold text-rose-600">
                     Rp {totalPiutang.toLocaleString("id-ID")}
                   </p>
                 </div>
               </div>
 
+              {/* Grafik */}
               <div className="glass-panel p-4 rounded-2xl slide-up">
-                <p className="text-xs font-bold text-slate-500 mb-2">
+                <p className="text-xs font-bold text-slate-600 mb-2">
                   📊 Kehadiran 7 Hari
                 </p>
                 <div className="flex items-end gap-1 h-20">
@@ -491,7 +485,7 @@ export default function AdminPage() {
                           height: `${Math.min((chartHadir[i] / (totalMurid || 1)) * 100, 100)}%`,
                         }}
                       ></div>
-                      <span className="text-[8px] text-slate-400 mt-1">
+                      <span className="text-[8px] text-slate-500 mt-1">
                         {l}
                       </span>
                     </div>
@@ -499,6 +493,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Tombol Aksi */}
               <div className="flex gap-2">
                 <a
                   href="/api/export"
@@ -532,16 +527,17 @@ export default function AdminPage() {
                 </button>
               </div>
 
+              {/* Filter & Search */}
               <div className="flex gap-2">
                 <input
                   type="text"
                   placeholder="Cari murid..."
-                  className="flex-1 p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400"
+                  className="flex-1 p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-indigo-400 text-slate-800 placeholder-slate-400"
                   value={cariAdmin}
                   onChange={(e) => setCariAdmin(e.target.value)}
                 />
                 <select
-                  className="p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold"
+                  className="p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800"
                   value={filterKelas}
                   onChange={(e) => setFilterKelas(e.target.value)}
                 >
@@ -550,7 +546,7 @@ export default function AdminPage() {
                   <option value="melati">Melati</option>
                 </select>
                 <select
-                  className="p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold"
+                  className="p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800"
                   value={filterSpp}
                   onChange={(e) => setFilterSpp(e.target.value)}
                 >
@@ -560,99 +556,108 @@ export default function AdminPage() {
                 </select>
               </div>
 
+              {/* Daftar Murid */}
               <div className="glass-panel p-4 rounded-2xl slide-up">
-                <h2 className="text-lg font-extrabold mb-4">
+                <h2 className="text-lg font-extrabold mb-4 text-slate-800">
                   📋 Murid ({filterMurid().length})
                 </h2>
-                {filterMurid().map((m) => (
-                  <div
-                    key={m.id}
-                    className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={
-                          m.foto_url ||
-                          `https://ui-avatars.com/api/?name=${encodeURIComponent(m.nama)}&background=EEF2FF&color=4F46E5&size=40`
-                        }
-                        className="w-10 h-10 rounded-xl object-cover border"
-                      />
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">
-                          {m.nama}
-                        </p>
-                        <p className="text-[10px] text-slate-500">
-                          {m.kelas} · {m.nomor_hp_ortu} ·{" "}
-                          <span
-                            className={
-                              m.status_spp === "LUNAS"
-                                ? "text-emerald-600"
-                                : "text-rose-600"
-                            }
-                          >
-                            {m.status_spp}
-                          </span>
-                        </p>
+                <div className="space-y-3">
+                  {filterMurid().map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex items-center justify-between bg-white/60 p-3 rounded-2xl border border-white/60"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <img
+                          src={
+                            m.foto_url ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(m.nama)}&background=EEF2FF&color=4F46E5&size=40`
+                          }
+                          className="w-10 h-10 rounded-xl object-cover border border-slate-200"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-800 text-sm truncate">
+                            {m.nama}
+                          </p>
+                          <p className="text-[10px] text-slate-600">
+                            {m.kelas} · {m.nomor_hp_ortu} ·{" "}
+                            <span
+                              className={
+                                m.status_spp === "LUNAS"
+                                  ? "text-emerald-600 font-bold"
+                                  : "text-rose-600 font-bold"
+                              }
+                            >
+                              {m.status_spp}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 ml-2">
+                        <button
+                          onClick={() => bukaEdit(m)}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 active:scale-95 transition-all"
+                          title="Edit"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => pindahKelas(m.id, m.nama, m.kelas)}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 active:scale-95 transition-all"
+                          title="Pindah Kelas"
+                        >
+                          ↔️
+                        </button>
+                        <button
+                          onClick={() => hapusMurid(m.id, m.nama)}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl bg-rose-50 text-rose-600 active:scale-95 transition-all"
+                          title="Hapus"
+                        >
+                          🗑️
+                        </button>
                       </div>
                     </div>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => bukaEdit(m)}
-                        className="text-xs bg-amber-50 text-amber-600 font-bold px-2 py-1 rounded-lg"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => pindahKelas(m.id, m.nama, m.kelas)}
-                        className="text-xs bg-indigo-50 text-indigo-600 font-bold px-2 py-1 rounded-lg"
-                      >
-                        Pindah
-                      </button>
-                      <button
-                        onClick={() => hapusMurid(m.id, m.nama)}
-                        className="text-xs bg-rose-50 text-rose-600 font-bold px-2 py-1 rounded-lg"
-                      >
-                        Hapus
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
+              {/* Tambah Murid */}
               <div className="glass-panel p-4 rounded-2xl slide-up">
-                <h2 className="text-lg font-extrabold mb-4">➕ Tambah Murid</h2>
+                <h2 className="text-lg font-extrabold mb-4 text-slate-800">
+                  ➕ Tambah Murid
+                </h2>
                 <div className="space-y-3">
                   <input
                     type="text"
                     placeholder="Nama"
-                    className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold"
+                    className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800 placeholder-slate-400"
                     value={namaBaru}
                     onChange={(e) => setNamaBaru(e.target.value)}
                   />
                   <input
                     type="text"
                     placeholder="No HP"
-                    className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold"
+                    className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800 placeholder-slate-400"
                     value={noHpBaru}
                     onChange={(e) => setNoHpBaru(e.target.value)}
                   />
                   <input
                     type="number"
                     placeholder="Nominal SPP"
-                    className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold"
+                    className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800 placeholder-slate-400"
                     value={nominalBaru}
                     onChange={(e) => setNominalBaru(e.target.value)}
                   />
                   <div className="flex gap-2">
                     <select
-                      className="flex-1 p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold"
+                      className="flex-1 p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800"
                       value={kelasBaru}
                       onChange={(e) => setKelasBaru(e.target.value)}
                     >
                       <option value="mawar">Mawar</option>
                       <option value="melati">Melati</option>
                     </select>
-                    <label className="flex-1 p-3 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-500 cursor-pointer bg-white/80 text-center">
+                    <label className="flex-1 p-3 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-600 cursor-pointer bg-white/80 text-center truncate">
                       📷 {fotoFile ? fotoFile.name : "Foto"}
                       <input
                         type="file"
@@ -674,13 +679,16 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Manajemen Guru */}
               <div className="glass-panel p-4 rounded-2xl slide-up">
-                <h2 className="text-lg font-extrabold mb-4">👩‍🏫 Guru</h2>
+                <h2 className="text-lg font-extrabold mb-4 text-slate-800">
+                  👩‍🏫 Guru
+                </h2>
                 <div className="flex gap-2 mb-4">
                   <input
                     type="text"
                     placeholder="Nama"
-                    className="flex-1 p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold"
+                    className="flex-1 p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800 placeholder-slate-400"
                     value={namaGuruBaru}
                     onChange={(e) => setNamaGuruBaru(e.target.value)}
                   />
@@ -689,7 +697,7 @@ export default function AdminPage() {
                     inputMode="numeric"
                     maxLength={6}
                     placeholder="PIN"
-                    className="w-20 p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold"
+                    className="w-20 p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800"
                     value={pinGuruBaru}
                     onChange={(e) =>
                       setPinGuruBaru(e.target.value.replace(/\D/g, ""))
@@ -711,7 +719,7 @@ export default function AdminPage() {
                       <p className="font-bold text-slate-800 text-sm">
                         {g.nama}
                       </p>
-                      <p className="text-[10px] text-slate-500">
+                      <p className="text-[10px] text-slate-600">
                         PIN: {g.pin_login}
                       </p>
                     </div>

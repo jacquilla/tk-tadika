@@ -62,13 +62,8 @@ export default function TabKegiatan({
         Aktivitas & Daily Sheet
       </h2>
       {muridHadirFilter.length === 0 ? (
-        <div className="text-center py-16 bg-white/50 rounded-[2rem] border-2 border-dashed border-slate-200">
-          <Attention
-            theme="filled"
-            size={48}
-            fill="#94A3B8"
-            className="mx-auto mb-3"
-          />
+        <div className="text-center py-16 bg-white/50 rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center">
+          <Attention theme="filled" size={48} fill="#DC2626" className="mb-3" />
           <h3 className="font-bold text-slate-600 text-base">
             Kelas Kosong / Tak Ditemukan
           </h3>
