@@ -452,13 +452,7 @@ export default function AppTK() {
       if (existing) {
         await fetch("/api/kehadiran", {
           method: "PUT",
-          headers: if (existing) {
-            await fetch("/api/kehadiran", {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ... }),
-            });
-          }
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             id: existing.id,
             status_hadir: "hadir",
