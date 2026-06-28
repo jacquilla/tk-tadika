@@ -216,7 +216,7 @@ export default function AppTK() {
           .eq("tanggal", hariIni);
         if (hadirError) throw hadirError;
         if (hadirData) {
-          const statusMap: Record<string, string> = {};
+          const statusMap: Record<string, "belum" | "hadir" | "pulang"> = {};
           const detailMap: Record<string, any> = {};
           hadirData.forEach((h) => {
             statusMap[h.murid_id] = h.status_hadir;
