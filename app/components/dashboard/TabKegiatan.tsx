@@ -191,9 +191,12 @@ export default function TabKegiatan({
               onChange={(e) => onPilihLabel(e.target.value)}
             >
               <option value="">✨ Pilih label kegiatan (opsional)</option>
+              <option value="agama_moral">🕌 Agama & Moral</option>
               <option value="motorik">🏃 Motorik</option>
               <option value="kognitif">🧠 Kognitif</option>
-              <option value="sosial">💬 Sosial-Emosional</option>
+              <option value="sosial_emosional">💬 Sosial-Emosional</option>
+              <option value="bahasa">🗣️ Bahasa</option>
+              <option value="seni">🎨 Seni</option>
             </select>
           </div>
           <textarea

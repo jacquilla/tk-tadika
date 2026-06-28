@@ -1,6 +1,37 @@
 "use client";
 import { useState, useEffect } from "react";
-import { VolumeNotice } from "@icon-park/react";
+import {
+  CheckOne,
+  Box,
+  Logout,
+  BankCard,
+  ChartLine,
+  Home,
+  Message,
+  Save,
+  Loading,
+  Left,
+  VolumeNotice,
+  Close,
+  User,
+  Send,
+  Attention,
+  MagicWand,
+  EmotionHappy,
+  Bowl,
+  SleepOne,
+  Calendar,
+  Search,
+  ArrowLeft,
+  ArrowRight,
+  Login,
+  Peoples,
+  BookOne,
+  Sport,
+  Thinking,
+  Palette,
+  Chat,
+} from "@icon-park/react";
 
 import LoginScreen from "./components/LoginScreen";
 import KelasScreen from "./components/KelasScreen";
@@ -490,9 +521,13 @@ export default function AppTK() {
   const handlePilihLabel = (label: string) => {
     setLabelAktivitas(label);
     const templates: Record<string, string> = {
+      agamaMoral: "🙏 Belajar agama & moral melalui: ",
       motorik: "🏃 Melatih motorik melalui: ",
       kognitif: "🧠 Mengasah kognitif dengan: ",
-      sosial: "💬 Belajar sosial-emosional lewat: ",
+      sosialEmosional: "💬 Belajar sosial-emosional lewat: ",
+      bahasa: "🗣️ Mengembangkan bahasa dengan: ",
+      seni: "🎨 Berkreasi seni melalui: ",
+      semua: "🌟 Mengembangkan semua aspek melalui: ",
     };
     if (label && templates[label]) {
       setJenisKegiatan(templates[label]);

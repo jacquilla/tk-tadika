@@ -181,18 +181,24 @@ export default function TabKegiatan({
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
             <MagicWand size={16} /> 2. Jurnal & Foto
           </label>
-          <div className="mb-3">
+
+          <div className="mb-4">
             <select
-              className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-slate-700 text-xs font-bold outline-none focus:border-indigo-400 transition-all"
+              className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-slate-700 text-sm font-bold outline-none focus:border-indigo-400 transition-all cursor-pointer"
               value={labelAktivitas}
               onChange={(e) => onPilihLabel(e.target.value)}
             >
-              <option value="">✨ Pilih label kegiatan (opsional)</option>
+              <option value="">✨ Pilih aspek perkembangan</option>
+              <option value="agamaMoral">📖 Agama & Moral</option>
               <option value="motorik">🏃 Motorik</option>
               <option value="kognitif">🧠 Kognitif</option>
-              <option value="sosial">💬 Sosial-Emosional</option>
+              <option value="sosialEmosional">💬 Sosial‑Emosional</option>
+              <option value="bahasa">🗣️ Bahasa</option>
+              <option value="seni">🎨 Seni</option>
+              <option value="semua">🌟 Semua Aspek</option>
             </select>
           </div>
+
           <textarea
             placeholder="Ketik aktivitas anak di sini..."
             className="w-full min-h-[100px] p-4 bg-slate-50/80 border-2 border-slate-200 rounded-2xl mb-4 outline-none focus:border-indigo-400 text-slate-700 text-sm font-semibold resize-y placeholder:text-slate-400"
