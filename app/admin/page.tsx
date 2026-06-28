@@ -6,6 +6,7 @@ import type {
   Guru,
   LogAdmin,
   RiwayatSpp,
+  DailySheetMeta,
 } from "../types/database";
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
