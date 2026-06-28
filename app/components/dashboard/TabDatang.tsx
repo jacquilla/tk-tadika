@@ -1,10 +1,11 @@
 import { Message } from "@icon-park/react";
+import type { Murid } from "../../types/database";
 
 interface Props {
-  muridBelumHadirFilter: any[];
-  onChat: (anak: any) => void;
-  onDatang: (anak: any) => void;
-  renderFoto: (anak: any, cls: string) => React.ReactNode;
+  muridBelumHadirFilter: Murid[];
+  onChat: (anak: Murid) => void;
+  onDatang: (anak: Murid) => void;
+  renderFoto: (anak: Murid, cls: string) => React.ReactNode;
 }
 
 export default function TabDatang({
@@ -37,8 +38,8 @@ export default function TabDatang({
             <span className="font-bold text-slate-800 text-base truncate">
               {anak.nama}
             </span>
-          </div>{" "}
-          <div className="flex items-center gap-2">
+          </div>
+          <div className="flex items-center gap-2 ml-2 shrink-0">
             <button
               onClick={() => onChat(anak)}
               className="bg-indigo-50 text-indigo-500 p-1.5 rounded-2xl hover:bg-indigo-100 transition-all active:scale-95"

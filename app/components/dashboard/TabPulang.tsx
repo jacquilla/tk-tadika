@@ -1,16 +1,17 @@
 import { Message, Home } from "@icon-park/react";
+import type { Murid } from "../types/database";
 
 interface Props {
-  muridHadirFilter: any[];
+  muridHadirFilter: Murid[];
   penjemput: Record<string, string>;
   penjemputCustom: Record<string, string>;
   ketPenjemput: Record<string, string>;
-  onChat: (anak: any) => void;
-  onPulang: (anak: any) => void;
+  onChat: (anak: Murid) => void;
+  onPulang: (anak: Murid) => void;
   onPenjemputChange: (id: string, val: string) => void;
   onPenjemputCustomChange: (id: string, val: string) => void;
   onKetChange: (id: string, val: string) => void;
-  renderFoto: (anak: any, cls: string) => React.ReactNode;
+  renderFoto: (anak: Murid, cls: string) => React.ReactNode;
 }
 
 export default function TabPulang({
@@ -27,6 +28,7 @@ export default function TabPulang({
 }: Props) {
   return (
     <div className="space-y-6">
+      {" "}
       <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-4">
         Check‑Out
       </h2>

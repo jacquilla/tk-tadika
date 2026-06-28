@@ -1,6 +1,6 @@
 import { Loading, VolumeNotice, Close, Send } from "@icon-park/react";
 
-interface BroadcastModalProps {
+interface Props {
   bukaSiaran: boolean;
   tipeSiaran: string;
   teksSiaran: string;

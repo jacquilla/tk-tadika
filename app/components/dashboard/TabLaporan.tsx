@@ -5,30 +5,52 @@ import {
   Loading,
   ArrowRight as ArrowRightIcon,
 } from "@icon-park/react";
+import type {
+  Murid,
+  Kehadiran,
+  LogAktivitas,
+  DailySheetMeta,
+} from "../../types/database";
 
 interface Props {
   subTabLaporan: "harian" | "mingguan";
   onSubTabChange: (sub: "harian" | "mingguan") => void;
-  muridSemuaFilter: any[];
-  selectedStudentReport: any;
-  onSelectStudent: (anak: any) => void;
-  statusAnak: Record<string, string>;
-  kehadiranHarian: Record<string, any>;
-  logKegiatan: Record<string, any[]>;
-  statusDailySheetHarian: Record<string, any>;
+  muridSemuaFilter: Murid[];
+  selectedStudentReport: Murid | null;
+  onSelectStudent: (anak: Murid) => void;
+  statusAnak: Record<string, "belum" | "hadir" | "pulang">;
+  kehadiranHarian: Record<string, Kehadiran>;
+  logKegiatan: Record<
+    string,
+    Array<{
+      waktu: string;
+      teks: string;
+      metadata: DailySheetMeta;
+      kategori: string;
+    }>
+  >;
+  statusDailySheetHarian: Record<string, DailySheetMeta>;
   weeklyOffset: number;
   onWeeklyOffsetChange: (offset: number) => void;
-  fetchWeeklyReportForChild: (anak: any) => void;
-  weeklyData: any;
+  fetchWeeklyReportForChild: (anak: Murid) => void;
+  weeklyData: {
+    anak: Murid;
+    dailyMap: Record<
+      string,
+      { hadir: Kehadiran | null; kegiatan: LogAktivitas[] }
+    >;
+    start: string;
+    end: string;
+  } | null;
   isLoadingWeekly: boolean;
-  renderFoto: (anak: any, cls: string) => React.ReactNode;
+  renderFoto: (anak: Murid, cls: string) => React.ReactNode;
   getWeekRange: (offset: number) => {
     start: string;
     end: string;
     mondayDate: Date;
     sundayDate: Date;
   };
-  logHarian: Record<string, any[]>;
+  logHarian: Record<string, LogAktivitas[]>;
 }
 
 export default function TabLaporan({
@@ -50,7 +72,6 @@ export default function TabLaporan({
   getWeekRange,
   logHarian,
 }: Props) {
-  // State lokal untuk menyimpan ID anak yang sedang diexpand (harian)
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (

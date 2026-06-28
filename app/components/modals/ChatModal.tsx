@@ -1,7 +1,8 @@
 import { Message, Close, Send, Loading } from "@icon-park/react";
+import type { Murid } from "../../types/database";
 
 interface Props {
-  chatPersonalAktif: any;
+  chatPersonalAktif: Murid | null;
   teksChatPersonal: string;
   isMengirimChat: boolean;
   onTutup: () => void;

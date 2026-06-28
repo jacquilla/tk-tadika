@@ -1,4 +1,4 @@
-import { CheckOne, Box, Logout, BankCard, ChartLine } from "@icon-park/react";
+import { CheckOne, Box, Logout, ChartLine } from "@icon-park/react";
 
 interface Props {
   tabAktif: string;
@@ -19,7 +19,7 @@ export default function BottomNav({ tabAktif, onTabChange }: Props) {
         <button
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
-          className={`flex-1 min-w-[60px] py-3 rounded-2xl flex flex-col items-center transition-all ${tabAktif === tab.id ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
+          className={`flex-1 min-w-[64px] py-3 rounded-2xl flex flex-col items-center transition-all ${tabAktif === tab.id ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
         >
           <tab.icon size={26} className="mb-1" strokeWidth={3} />
           <span className="text-[9px] font-extrabold uppercase">

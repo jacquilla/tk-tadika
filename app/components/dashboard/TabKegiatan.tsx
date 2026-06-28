@@ -7,11 +7,14 @@ import {
   EmotionHappy,
   Save,
   Loading,
+  Plus,
+  Camera,
 } from "@icon-park/react";
+import type { Murid, DailySheetMeta } from "../../types/database";
 
 interface Props {
-  muridHadirFilter: any[];
-  statusDailySheetHarian: Record<string, any>;
+  muridHadirFilter: Murid[];
+  statusDailySheetHarian: Record<string, DailySheetMeta>;
   pilihanAnak: string[];
   onPilihAnak: (ids: string[]) => void;
   labelAktivitas: string;
@@ -30,7 +33,7 @@ interface Props {
   isSaving: boolean;
   onSimpan: () => void;
   onGetaran: () => void;
-  renderFoto: (anak: any, cls: string) => React.ReactNode;
+  renderFoto: (anak: Murid, cls: string) => React.ReactNode;
 }
 
 export default function TabKegiatan({
@@ -62,9 +65,14 @@ export default function TabKegiatan({
         Aktivitas & Daily Sheet
       </h2>
       {muridHadirFilter.length === 0 ? (
-        <div className="text-center py-16 bg-white/50 rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center">
-          <Attention theme="filled" size={48} fill="#DC2626" className="mb-3" />
-          <h3 className="font-bold text-slate-600 text-base">
+        <div className="text-center py-16 bg-white/50 rounded-[2rem] border-2 border-dashed border-slate-200">
+          <Attention
+            theme="filled"
+            size={48}
+            fill="#DC2626"
+            className="mb-3 mx-auto"
+          />
+          <h3 className="font-bold text-red-800 text-base">
             Kelas Kosong / Tak Ditemukan
           </h3>
         </div>
@@ -197,13 +205,31 @@ export default function TabKegiatan({
               onPilihLabel("");
             }}
           />
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={(e) => onFotoChange(e.target.files?.[0] || null)}
-            className="block w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-indigo-50 file:text-indigo-600 mb-6"
-          />
+
+          {/* Tombol tambah file & kamera */}
+          <div className="flex gap-3 mb-5">
+            <label className="flex-1 flex items-center justify-center gap-2 p-3 bg-indigo-50 text-indigo-600 font-extrabold text-xs rounded-2xl active:scale-95 transition-all cursor-pointer hover:bg-indigo-100 border-2 border-indigo-100">
+              <Plus theme="outline" size={18} strokeWidth={4} />
+              <span>Tambah File</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => onFotoChange(e.target.files?.[0] || null)}
+              />
+            </label>
+            <label className="flex-1 flex items-center justify-center gap-2 p-3 bg-indigo-50 text-indigo-600 font-extrabold text-xs rounded-2xl active:scale-95 transition-all cursor-pointer hover:bg-indigo-100 border-2 border-indigo-100">
+              <Camera theme="outline" size={18} strokeWidth={4} />
+              <span>Ambil Foto</span>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => onFotoChange(e.target.files?.[0] || null)}
+              />
+            </label>
+          </div>
 
           <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <Bowl size={14} /> 3. Daily Sheet Cepat

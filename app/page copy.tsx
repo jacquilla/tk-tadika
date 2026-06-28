@@ -15,12 +15,6 @@ import ChatModal from "./components/modals/ChatModal";
 import BroadcastModal from "./components/modals/BroadcastModal";
 
 import { supabase } from "./lib/supabase";
-import type {
-  Murid,
-  Kehadiran,
-  LogAktivitas,
-  DailySheetMeta,
-} from "./types/database";
 
 const TEMPLATE_PESAN = {
   umum:
@@ -89,25 +83,22 @@ export default function AppTK() {
     "harian",
   );
 
-  const [dataSemuaMurid, setDataSemuaMurid] = useState<Murid[]>([]);
+  const [dataSemuaMurid, setDataSemuaMurid] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
 
-  const [statusAnak, setStatusAnak] = useState<
-    Record<string, "belum" | "hadir" | "pulang">
-  >({});
-  const [kehadiranHarian, setKehadiranHarian] = useState<
-    Record<string, Kehadiran>
-  >({});
+  const [statusAnak, setStatusAnak] = useState<Record<string, string>>({});
+  const [kehadiranHarian, setKehadiranHarian] = useState<Record<string, any>>(
+    {},
+  );
+
   const [statusDailySheetHarian, setStatusDailySheetHarian] = useState<
-    Record<string, DailySheetMeta>
+    Record<string, any>
   >({});
 
   const [logKegiatan, setLogKegiatan] = useState<Record<string, any[]>>({});
-  const [logHarian, setLogHarian] = useState<Record<string, LogAktivitas[]>>(
-    {},
-  );
+  const [logHarian, setLogHarian] = useState<Record<string, any[]>>({});
   const [pilihanAnak, setPilihanAnak] = useState<string[]>([]);
   const [jenisKegiatan, setJenisKegiatan] = useState("");
 
@@ -130,9 +121,7 @@ export default function AppTK() {
   const [tipeSiaran, setTipeSiaran] = useState("umum");
   const [teksSiaran, setTeksSiaran] = useState(TEMPLATE_PESAN.umum);
 
-  const [chatPersonalAktif, setChatPersonalAktif] = useState<Murid | null>(
-    null,
-  );
+  const [chatPersonalAktif, setChatPersonalAktif] = useState<any>(null);
   const [teksChatPersonal, setTeksChatPersonal] = useState("");
   const [isMengirimChat, setIsMengirimChat] = useState(false);
 
@@ -141,18 +130,9 @@ export default function AppTK() {
 
   const [cariMurid, setCariMurid] = useState("");
 
-  const [selectedStudentReport, setSelectedStudentReport] =
-    useState<Murid | null>(null);
+  const [selectedStudentReport, setSelectedStudentReport] = useState<any>(null);
   const [weeklyOffset, setWeeklyOffset] = useState(0);
-  const [weeklyData, setWeeklyData] = useState<{
-    anak: Murid;
-    dailyMap: Record<
-      string,
-      { hadir: Kehadiran | null; kegiatan: LogAktivitas[] }
-    >;
-    start: string;
-    end: string;
-  } | null>(null);
+  const [weeklyData, setWeeklyData] = useState<any>(null);
   const [isLoadingWeekly, setIsLoadingWeekly] = useState(false);
 
   // ---------- DRAFT & FETCHING ----------
@@ -218,9 +198,9 @@ export default function AppTK() {
         if (hadirData) {
           const statusMap: Record<string, string> = {};
           const detailMap: Record<string, any> = {};
-          hadirData.forEach((h) => {
+          hadirData.forEach((h: any) => {
             statusMap[h.murid_id] = h.status_hadir;
-            detailMap[h.murid_id] = h;
+            detailMap[h.murid_id] = h; // simpan seluruh data kehadiran
           });
           setStatusAnak(statusMap);
           setKehadiranHarian(detailMap);
@@ -238,7 +218,7 @@ export default function AppTK() {
 
         if (!logSheetError && logSheet) {
           const sheetMap: Record<string, any> = {};
-          logSheet.forEach((l) => {
+          logSheet.forEach((l: any) => {
             if (!sheetMap[l.murid_id]) sheetMap[l.murid_id] = { foto_url: "" };
             sheetMap[l.murid_id] = {
               ...sheetMap[l.murid_id],
@@ -262,7 +242,7 @@ export default function AppTK() {
 
         if (logHarianData) {
           const logMap: Record<string, any[]> = {};
-          logHarianData.forEach((l) => {
+          logHarianData.forEach((l: any) => {
             if (!logMap[l.murid_id]) logMap[l.murid_id] = [];
             logMap[l.murid_id].push(l);
           });
@@ -282,7 +262,7 @@ export default function AppTK() {
         "postgres_changes",
         { event: "*", schema: "public", table: "kehadiran" },
         (payload) => {
-          const record = payload.new as Kehadiran;
+          const record = payload.new as any;
           if (record && record.murid_id && record.status_hadir) {
             setStatusAnak((prev) => ({
               ...prev,
@@ -397,7 +377,7 @@ export default function AppTK() {
     }
   };
 
-  const bukaChatPersonal = (anak: Murid) => {
+  const bukaChatPersonal = (anak: any) => {
     getaranHalus();
     setChatPersonalAktif(anak);
     setTeksChatPersonal(
@@ -414,7 +394,7 @@ export default function AppTK() {
     alert(`Pesan berhasil terkirim ke orang tua ${chatPersonalAktif.nama}!`);
   };
 
-  const handleDatang = async (anak: Murid) => {
+  const handleDatang = async (anak: any) => {
     getaranHalus();
     const today = getTanggalLokal();
     const nowObj = new Date();
@@ -581,7 +561,7 @@ export default function AppTK() {
       .lt("created_at", en);
     if (freshLog) {
       const logMap: Record<string, any[]> = {};
-      freshLog.forEach((l) => {
+      freshLog.forEach((l: any) => {
         if (!logMap[l.murid_id]) logMap[l.murid_id] = [];
         logMap[l.murid_id].push(l);
       });
@@ -589,7 +569,7 @@ export default function AppTK() {
     }
   };
 
-  const handlePulang = async (anak: Murid) => {
+  const handlePulang = async (anak: any) => {
     getaranHalus();
     const dropdownValue = penjemput[anak.id] || "Orang Tua";
     const siapaJemput =
@@ -679,7 +659,7 @@ export default function AppTK() {
     }
   };
 
-  const fetchWeeklyReportForChild = async (anak: Murid) => {
+  const fetchWeeklyReportForChild = async (anak: any) => {
     setIsLoadingWeekly(true);
     setSelectedStudentReport(anak);
     const { start, end } = getWeekRange(weeklyOffset);
@@ -708,7 +688,7 @@ export default function AppTK() {
         const dateStr = d.toISOString().split("T")[0];
         dailyMap[dateStr] = { hadir: null, kegiatan: [] };
       }
-      hadirData?.forEach((h) => {
+      hadirData?.forEach((h: any) => {
         if (dailyMap[h.tanggal]) dailyMap[h.tanggal].hadir = h;
       });
       logData?.forEach((l: any) => {
@@ -723,7 +703,7 @@ export default function AppTK() {
     }
   };
 
-  const renderFotoMurid = (anak: Murid, className: string) => {
+  const renderFotoMurid = (anak: any, className: string) => {
     const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(anak.nama)}&background=EEF2FF&color=4F46E5&rounded=false&size=64`;
     return (
       <img
