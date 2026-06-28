@@ -1,5 +1,5 @@
 import { Message, Home } from "@icon-park/react";
-import type { Murid } from "../types/database";
+import type { Murid } from "../../types/database";
 
 interface Props {
   muridHadirFilter: Murid[];
