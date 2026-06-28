@@ -94,7 +94,9 @@ export default function AppTK() {
   const [isSaving, setIsSaving] = useState(false);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
 
-  const [statusAnak, setStatusAnak] = useState<Record<string, string>>({});
+  const [statusAnak, setStatusAnak] = useState<
+    Record<string, "belum" | "hadir" | "pulang">
+  >({});
   const [kehadiranHarian, setKehadiranHarian] = useState<
     Record<string, Kehadiran>
   >({});
