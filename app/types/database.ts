@@ -60,6 +60,5 @@ export interface RiwayatSpp {
   status_sesudah: string;
   nominal: number;
   created_at: string;
+  murid?: Pick<Murid, "nama"> | null; // hasil join dari Supabase
 }
-
-import type { DailySheetMeta } from "./database";

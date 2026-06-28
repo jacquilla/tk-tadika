@@ -825,7 +825,7 @@ export default function AdminPage() {
                     className="flex justify-between text-xs border-b border-slate-100 py-2 text-slate-700"
                   >
                     <span className="font-bold text-slate-800">
-                      {(r.murid as any)?.nama || "-"}
+                      {r.murid?.nama || "-"}{" "}
                     </span>
                     <span>
                       {r.status_sebelum} → {r.status_sesudah}
