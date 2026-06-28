@@ -28,9 +28,6 @@ import {
   Peoples,
   BookOne,
   Sport,
-  Thinking,
-  Palette,
-  Chat,
 } from "@icon-park/react";
 
 import LoginScreen from "./components/LoginScreen";
@@ -527,7 +524,8 @@ export default function AppTK() {
       sosialEmosional: "💬 Belajar sosial-emosional lewat: ",
       bahasa: "🗣️ Mengembangkan bahasa dengan: ",
       seni: "🎨 Berkreasi seni melalui: ",
-      semua: "🌟 Mengembangkan semua aspek melalui: ",
+      semua:
+        "🌟 Mengembangkan semua aspek (Agama & Moral, Motorik, Kognitif, Sosial - Emosional, Bahasa, Seni) melalui: ",
     };
     if (label && templates[label]) {
       setJenisKegiatan(templates[label]);
