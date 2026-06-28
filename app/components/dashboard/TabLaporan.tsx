@@ -156,25 +156,27 @@ export default function TabLaporan({
                           <>
                             <p>
                               <span className="font-bold">Datang:</span>{" "}
-                              {kehadiranHarian[anak.id].waktu_datang
+                              {kehadiranHarian[anak.id]?.waktu_datang
                                 ? new Date(
-                                    kehadiranHarian[anak.id].waktu_datang,
+                                    kehadiranHarian[anak.id]!
+                                      .waktu_datang as string,
                                   ).toLocaleTimeString("id-ID", {
                                     hour: "2-digit",
                                     minute: "2-digit",
                                   })
-                                : "-"}
+                                : "-"}{" "}
                             </p>
                             <p>
                               <span className="font-bold">Pulang:</span>{" "}
-                              {kehadiranHarian[anak.id].waktu_pulang
+                              {kehadiranHarian[anak.id]?.waktu_pulang
                                 ? new Date(
-                                    kehadiranHarian[anak.id].waktu_pulang,
+                                    kehadiranHarian[anak.id]!
+                                      .waktu_pulang as string,
                                   ).toLocaleTimeString("id-ID", {
                                     hour: "2-digit",
                                     minute: "2-digit",
                                   })
-                                : "-"}
+                                : "-"}{" "}
                             </p>
                           </>
                         )}
