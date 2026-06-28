@@ -1,20 +1,25 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "../../lib/supabase-admin";
 import ExcelJS from "exceljs";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Token internal untuk mengamankan endpoint
+const API_SECRET = process.env.API_SECRET || "tk-tadika-mesra-secret";
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Validasi token
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || authHeader !== `Bearer ${API_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const { data: murid } = await supabase.from("murid").select("*");
+    const { data: murid } = await supabaseAdmin.from("murid").select("*");
 
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
       .toISOString()
       .split("T")[0];
-    const { data: kehadiran } = await supabase
+    const { data: kehadiran } = await supabaseAdmin
       .from("kehadiran")
       .select("*")
       .gte("tanggal", startOfMonth)
@@ -32,7 +37,7 @@ export async function GET() {
       { header: "Waktu Pulang", key: "pulang", width: 10 },
       { header: "Penjemput", key: "penjemput", width: 15 },
     ];
-    kehadiran?.forEach((h) => {
+    kehadiran?.forEach((h: any) => {
       const anak = murid?.find((m) => m.id === h.murid_id);
       sheet1.addRow({
         nama: anak?.nama || "-",

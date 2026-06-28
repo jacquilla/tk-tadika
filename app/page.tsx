@@ -21,6 +21,7 @@ import type {
   LogAktivitas,
   DailySheetMeta,
 } from "./types/database";
+import { getAuthHeaders } from "./lib/api-helpers";
 
 const TEMPLATE_PESAN = {
   umum:
@@ -345,6 +346,18 @@ export default function AppTK() {
         return;
       }
       setNamaGuru(data.nama);
+
+      // Simpan token JWT
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pinLogin.trim(), role: "guru" }),
+      });
+      const authData = await res.json();
+      if (authData.token) {
+        localStorage.setItem("tk-token", authData.token);
+      }
+
       setTampilan("kelas");
     } catch (err) {
       setLoginError("Gagal memeriksa PIN. Periksa koneksi.");
@@ -372,11 +385,15 @@ export default function AppTK() {
       ],
     }));
     try {
-      await supabase.from("log_aktivitas").insert({
-        murid_id: idAnak,
-        deskripsi: teksKegiatan,
-        kategori,
-        metadata,
+      await fetch("/api/log-aktivitas", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          murid_id: idAnak,
+          deskripsi: teksKegiatan,
+          kategori,
+          metadata,
+        }),
       });
     } catch (err) {
       console.error("Gagal mencatat aktivitas:", err);
@@ -388,7 +405,7 @@ export default function AppTK() {
     try {
       const res = await fetch("/api/wa", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ targetHp: nomorHp, pesanCustom: pesan }),
       });
       if (!res.ok) throw new Error("Respon API tidak ok");
@@ -433,16 +450,31 @@ export default function AppTK() {
         .maybeSingle();
       if (error) throw error;
       if (existing) {
-        await supabase
-          .from("kehadiran")
-          .update({ status_hadir: "hadir", waktu_datang: nowStr })
-          .eq("id", existing.id);
+        await fetch("/api/kehadiran", {
+          method: "PUT",
+          headers: if (existing) {
+            await fetch("/api/kehadiran", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ... }),
+            });
+          }
+          body: JSON.stringify({
+            id: existing.id,
+            status_hadir: "hadir",
+            waktu_datang: nowStr,
+          }),
+        });
       } else {
-        await supabase.from("kehadiran").insert({
-          murid_id: anak.id,
-          status_hadir: "hadir",
-          waktu_datang: nowStr,
-          tanggal: today,
+        await fetch("/api/kehadiran", {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            murid_id: anak.id,
+            status_hadir: "hadir",
+            waktu_datang: nowStr,
+            tanggal: today,
+          }),
         });
       }
       setStatusAnak((prev) => ({ ...prev, [anak.id]: "hadir" }));
@@ -492,8 +524,12 @@ export default function AppTK() {
       try {
         const formData = new FormData();
         formData.append("file", fotoAktivitas);
+        const token = localStorage.getItem("tk-token") || "";
         const res = await fetch("/api/upload", {
           method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
           body: formData,
         });
         const data = await res.json();
@@ -599,18 +635,38 @@ export default function AppTK() {
         : dropdownValue;
     const detailJemput = ketPenjemput[anak.id] || "";
     const today = getTanggalLokal();
+
     setStatusAnak((prev) => ({ ...prev, [anak.id]: "pulang" }));
+
     try {
-      await supabase
+      // Cari record kehadiran hari ini
+      const { data: existing, error: findError } = await supabase
         .from("kehadiran")
-        .update({
+        .select("id")
+        .eq("murid_id", anak.id)
+        .eq("tanggal", today)
+        .maybeSingle();
+
+      if (findError) throw findError;
+      if (!existing)
+        throw new Error(
+          "Data kehadiran tidak ditemukan. Pastikan anak sudah check‑in.",
+        );
+
+      // Update melalui API yang aman
+      await fetch("/api/kehadiran", {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          id: existing.id,
           status_hadir: "pulang",
           waktu_pulang: new Date().toISOString(),
           penjemput: siapaJemput,
           keterangan_jemput: detailJemput,
-        })
-        .eq("murid_id", anak.id)
-        .eq("tanggal", today);
+        }),
+      });
+
+      // Catat kegiatan pulang (tetap pakai API)
       catatKegiatan(
         anak.id,
         `Pulang (Dijemput: ${siapaJemput}${detailJemput ? ` - ${detailJemput}` : ""})`,
@@ -653,9 +709,10 @@ export default function AppTK() {
         ringkasanDaily +
         `\n\n🚗 *Informasi Kepulangan:*\nAnanda telah dijemput oleh: *${siapaJemput}*\n${detailJemput ? `Keterangan: ${detailJemput}\n` : ""}` +
         `\nTerima kasih sudah mempercayakan ananda kepada kami. Sampai jumpa besok dengan cerita baru! 😊🌈`;
+
       await kirimWA(anak.nomor_hp_ortu, pesanFinal);
     } catch (err) {
-      alert("Gagal menyimpan data kepulangan.");
+      alert("Gagal menyimpan data kepulangan. Pastikan anak sudah check‑in.");
     }
   };
 
@@ -737,6 +794,21 @@ export default function AppTK() {
       />
     );
   };
+
+  // ---------- SESSION TIMEOUT ----------
+  const SESSION_DURATION = 12 * 60 * 60 * 1000; // 12 jam
+
+  useEffect(() => {
+    if (tampilan === "dashboard" || tampilan === "kelas") {
+      const timer = setTimeout(() => {
+        alert("Sesi Anda telah berakhir. Silakan login kembali.");
+        setTampilan("login");
+        setNamaGuru("");
+      }, SESSION_DURATION);
+
+      return () => clearTimeout(timer);
+    }
+  }, [tampilan]);
 
   // ---------- UI ----------
   return (

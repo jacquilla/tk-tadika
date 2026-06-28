@@ -1,23 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { verifyToken } from "../../lib/verify-token";
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
+  if (!verifyToken(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
-
-    // Tambahkan variabel penangkap url gambar dari frontend (jika ada)
-    const { targetHp, pesanCustom, urlGambar } = body;
-
-    // Mengambil token dari file .env.local Anda
+    const { targetHp, pesanCustom } = body;
     const TOKEN_FONNTE = process.env.FONNTE_TOKEN || "";
 
     const formData = new FormData();
     formData.append("target", String(targetHp));
     formData.append("message", pesanCustom);
-
-    // Jika frontend mengirimkan link gambar (hasil upload Drive), tambahkan ke Fonnte
-    if (urlGambar) {
-      formData.append("url", urlGambar);
-    }
 
     const response = await fetch("https://api.fonnte.com/send", {
       method: "POST",
@@ -26,7 +22,6 @@ export async function POST(request: NextRequest) {
     });
 
     const result = await response.json();
-
     if (result.status === true) {
       return NextResponse.json({ success: true, detail: result });
     } else {

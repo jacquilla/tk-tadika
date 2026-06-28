@@ -10,6 +10,7 @@ import type {
 } from "../types/database";
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { getAuthHeaders } from "../lib/api-helpers";
 
 const ADMIN_PIN = process.env.NEXT_PUBLIC_ADMIN_PIN || "0000";
 
@@ -100,15 +101,31 @@ export default function AdminPage() {
   const [tahunIuran, setTahunIuran] = useState(new Date().getFullYear());
 
   // ========== HANDLERS ==========
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (pin === ADMIN_PIN) {
+      // 🔐 Minta token ke /api/auth
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ pin, role: "admin" }),
+      });
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem("tk-token", data.token);
+      }
       setAutentikasi(true);
       setError("");
-    } else setError("PIN salah");
+    } else {
+      setError("PIN salah");
+    }
   };
 
   const catatLog = async (aksi: string, detail = "") => {
-    await supabase.from("log_admin").insert([{ aksi, detail }]);
+    await fetch("/api/log-admin", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ aksi, detail }),
+    });
   };
 
   const ambilData = async () => {
@@ -200,31 +217,33 @@ export default function AdminPage() {
     if (!iuranMurid) return;
     const muridId = iuranMurid.id;
     if (!tanggal) {
-      await supabase
-        .from("iuran_spp")
-        .delete()
-        .eq("murid_id", muridId)
-        .eq("tahun", tahunIuran)
-        .eq("bulan", bulan);
+      await fetch("/api/iuran-spp", {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ murid_id: muridId, tahun: tahunIuran, bulan }),
+      });
     } else {
-      await supabase.from("iuran_spp").upsert([
-        {
+      await fetch("/api/iuran-spp", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
           murid_id: muridId,
           tahun: tahunIuran,
           bulan,
           tanggal_bayar: tanggal,
-        },
-      ]);
+        }),
+      });
     }
     setIuranData((prev) => ({ ...prev, [bulan]: tanggal }));
 
     const bulanSekarang = new Date().getMonth() + 1;
     if (bulan === bulanSekarang && tahunIuran === new Date().getFullYear()) {
       const statusBaru = tanggal ? "LUNAS" : "MENUNGGAK";
-      await supabase
-        .from("murid")
-        .update({ status_spp: statusBaru })
-        .eq("id", muridId);
+      await fetch("/api/murid", {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id: muridId, status_spp: statusBaru }),
+      });
       await ambilData();
     }
   };
@@ -256,7 +275,14 @@ export default function AdminPage() {
       try {
         const fd = new FormData();
         fd.append("file", fotoFile);
-        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const token = localStorage.getItem("tk-token") || "";
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: fd,
+        });
         const d = await res.json();
         if (d.imageUrl) fotoUrl = d.imageUrl;
         else {
@@ -271,16 +297,18 @@ export default function AdminPage() {
       }
       setUploading(false);
     }
-    await supabase.from("murid").insert([
-      {
+    await fetch("/api/murid", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
         nama: namaBaru,
         kelas: kelasBaru,
         nomor_hp_ortu: noHpBaru,
         nominal_spp: parseInt(nominalBaru) || 350000,
         status_spp: "LUNAS",
         foto_url: fotoUrl || null,
-      },
-    ]);
+      }),
+    });
     setNamaBaru("");
     setNoHpBaru("");
     setNominalBaru("350000");
@@ -305,20 +333,29 @@ export default function AdminPage() {
     if (editFoto) {
       const fd = new FormData();
       fd.append("file", editFoto);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const token = localStorage.getItem("tk-token") || "";
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: fd,
+      });
       const d = await res.json();
       if (d.imageUrl) fotoUrl = d.imageUrl;
     }
-    await supabase
-      .from("murid")
-      .update({
+    await fetch("/api/murid", {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        id: editId,
         nama: editNama,
         kelas: editKelas,
         nomor_hp_ortu: editNoHp,
         nominal_spp: parseInt(editNominal) || 350000,
         ...(fotoUrl ? { foto_url: fotoUrl } : {}),
-      })
-      .eq("id", editId!);
+      }),
+    });
     setEditId(null);
     setSavingEdit(false);
     ambilData();
@@ -327,19 +364,23 @@ export default function AdminPage() {
 
   const hapusMurid = async (id: string, nama: string) => {
     if (confirm(`Hapus ${nama}?`)) {
-      await supabase.from("murid").delete().eq("id", id);
+      await fetch("/api/murid", {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id }),
+      });
       ambilData();
       catatLog("Hapus murid", nama);
     }
   };
 
-  const pindahKelas = async (
-    id: string,
-    nama: string,
-    kelasLama: Murid["kelas"],
-  ) => {
+  const pindahKelas = async (id: string, nama: string, kelasLama: string) => {
     const baru = kelasLama === "mawar" ? "melati" : "mawar";
-    await supabase.from("murid").update({ kelas: baru }).eq("id", id);
+    await fetch("/api/murid", {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id, kelas: baru }),
+    });
     ambilData();
     catatLog("Pindah kelas", `${nama} → ${baru}`);
   };
@@ -354,9 +395,11 @@ export default function AdminPage() {
       .eq("pin_login", pinGuruBaru)
       .maybeSingle();
     if (exist) return alert("PIN sudah dipakai.");
-    await supabase
-      .from("guru")
-      .insert([{ nama: namaGuruBaru, pin_login: pinGuruBaru }]);
+    await fetch("/api/guru", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ nama: namaGuruBaru, pin_login: pinGuruBaru }),
+    });
     setNamaGuruBaru("");
     setPinGuruBaru("");
     ambilData();
@@ -365,7 +408,11 @@ export default function AdminPage() {
 
   const hapusGuru = async (id: string, nama: string) => {
     if (confirm(`Hapus guru ${nama}?`)) {
-      await supabase.from("guru").delete().eq("id", id);
+      await fetch("/api/guru", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
       ambilData();
       catatLog("Hapus guru", nama);
     }
@@ -373,10 +420,11 @@ export default function AdminPage() {
 
   const gantiPinGuru = async () => {
     if (!editPinBaru.trim()) return;
-    await supabase
-      .from("guru")
-      .update({ pin_login: editPinBaru })
-      .eq("id", editPinId!);
+    await fetch("/api/guru", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editPinId, pin_login: editPinBaru }),
+    });
     setEditPinId(null);
     setEditPinBaru("");
     ambilData();
@@ -394,8 +442,18 @@ export default function AdminPage() {
     return list;
   };
 
+  // ---------- SESSION & DATA ----------
+  const SESSION_DURATION = 12 * 60 * 60 * 1000; // 12 jam
+
   useEffect(() => {
-    if (autentikasi) ambilData();
+    if (autentikasi) {
+      ambilData();
+      const timer = setTimeout(() => {
+        alert("Sesi admin telah berakhir. Silakan login kembali.");
+        setAutentikasi(false);
+      }, SESSION_DURATION);
+      return () => clearTimeout(timer);
+    }
   }, [autentikasi]);
 
   // ========== UI ==========
@@ -439,7 +497,10 @@ export default function AdminPage() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-extrabold text-slate-800">🏫 Admin</h1>
             <button
-              onClick={() => setAutentikasi(false)}
+              onClick={() => {
+                localStorage.removeItem("tk-token"); // hapus token
+                setAutentikasi(false);
+              }}
               className="text-slate-600 font-bold hover:text-slate-800"
             >
               Logout
@@ -652,8 +713,128 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Tambah Murid, Manajemen Guru */}
-              {/* ... (kode selanjutnya sama seperti di atas, tidak berubah) ... */}
+              {/* Tambah Murid */}
+              <div className="glass-panel p-4 rounded-2xl slide-up">
+                <h2 className="text-lg font-extrabold mb-4 text-slate-800">
+                  ➕ Tambah Murid
+                </h2>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Nama"
+                    className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800 placeholder-slate-400"
+                    value={namaBaru}
+                    onChange={(e) => setNamaBaru(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="No HP"
+                    className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800 placeholder-slate-400"
+                    value={noHpBaru}
+                    onChange={(e) => setNoHpBaru(e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    placeholder="Nominal SPP"
+                    className="w-full p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800 placeholder-slate-400"
+                    value={nominalBaru}
+                    onChange={(e) => setNominalBaru(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <select
+                      className="flex-1 p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800"
+                      value={kelasBaru}
+                      onChange={(e) => setKelasBaru(e.target.value)}
+                    >
+                      <option value="mawar">Mawar</option>
+                      <option value="melati">Melati</option>
+                    </select>
+                    <label className="flex-1 p-3 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-600 cursor-pointer bg-white/80 text-center truncate">
+                      📷 {fotoFile ? fotoFile.name : "Foto"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) =>
+                          setFotoFile(e.target.files?.[0] || null)
+                        }
+                      />
+                    </label>
+                  </div>
+                  <button
+                    onClick={tambahMurid}
+                    disabled={uploading}
+                    className="w-full bg-indigo-500 text-white font-extrabold py-3 rounded-2xl active:scale-95 transition-all btn-premium"
+                  >
+                    {uploading ? "Upload..." : "Simpan"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Manajemen Guru */}
+              <div className="glass-panel p-4 rounded-2xl slide-up">
+                <h2 className="text-lg font-extrabold mb-4 text-slate-800">
+                  👩‍🏫 Guru
+                </h2>
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    placeholder="Nama"
+                    className="flex-1 p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800 placeholder-slate-400"
+                    value={namaGuruBaru}
+                    onChange={(e) => setNamaGuruBaru(e.target.value)}
+                  />
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="PIN"
+                    className="w-20 p-3 bg-white/80 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-800"
+                    value={pinGuruBaru}
+                    onChange={(e) =>
+                      setPinGuruBaru(e.target.value.replace(/\D/g, ""))
+                    }
+                  />
+                  <button
+                    onClick={tambahGuru}
+                    className="bg-indigo-500 text-white font-extrabold px-4 py-3 rounded-2xl active:scale-95"
+                  >
+                    +
+                  </button>
+                </div>
+                {guru.map((g) => (
+                  <div
+                    key={g.id}
+                    className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"
+                  >
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">
+                        {g.nama}
+                      </p>
+                      <p className="text-[10px] text-slate-600">
+                        PIN: {g.pin_login}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setEditPinId(g.id);
+                          setEditPinBaru("");
+                        }}
+                        className="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-1 rounded-lg"
+                      >
+                        PIN
+                      </button>
+                      <button
+                        onClick={() => hapusGuru(g.id, g.nama)}
+                        className="text-xs bg-rose-50 text-rose-600 font-bold px-2 py-1 rounded-lg"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

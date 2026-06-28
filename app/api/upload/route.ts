@@ -1,43 +1,37 @@
 import { NextResponse } from "next/server";
+import { verifyToken } from "../../lib/verify-token";
 import { google } from "googleapis";
 import sharp from "sharp";
 
-const SCOPES = ["https://www.googleapis.com/auth/drive.file"];
-
 export async function POST(request: Request) {
+  if (!verifyToken(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    // Pastikan refresh token tersedia
-    if (!process.env.GOOGLE_DRIVE_REFRESH_TOKEN) {
-      return NextResponse.json(
-        { error: "Refresh token tidak ditemukan di environment variables." },
-        { status: 500 },
-      );
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+
+    if (!file) {
+      return NextResponse.json({ error: "Tidak ada file" }, { status: 400 });
     }
 
+    // 1. Kompresi dengan sharp
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const compressed = await sharp(buffer)
+      .resize({ width: 1200, withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+
+    // 2. Autentikasi OAuth2
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_DRIVE_CLIENT_ID,
       process.env.GOOGLE_DRIVE_CLIENT_SECRET,
       "http://localhost", // redirect URI tidak penting untuk refresh token
     );
-
     oauth2Client.setCredentials({
       refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN,
     });
-
-    // Paksa refresh access token (memastikan valid)
-    await oauth2Client.getAccessToken();
-
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    if (!file) {
-      return NextResponse.json({ error: "Tidak ada file" }, { status: 400 });
-    }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const compressed = await sharp(buffer)
-      .resize({ width: 800, withoutEnlargement: true })
-      .jpeg({ quality: 80 })
-      .toBuffer();
 
     const drive = google.drive({ version: "v3", auth: oauth2Client });
 
@@ -45,7 +39,6 @@ export async function POST(request: Request) {
       name: `TK-${Date.now()}.jpg`,
       parents: [process.env.GOOGLE_DRIVE_FOLDER_ID!],
     };
-
     const media = {
       mimeType: "image/jpeg",
       body: require("stream").Readable.from(compressed),
@@ -59,7 +52,7 @@ export async function POST(request: Request) {
 
     const fileId = createdFile.data.id!;
 
-    // Set file ke publik
+    // 3. Set file menjadi publik
     await drive.permissions.create({
       fileId: fileId,
       requestBody: { role: "reader", type: "anyone" },
