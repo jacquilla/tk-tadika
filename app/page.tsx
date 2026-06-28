@@ -404,6 +404,7 @@ export default function AppTK() {
   };
 
   const handleKirimChatPersonal = async () => {
+    if (!chatPersonalAktif) return;
     if (!teksChatPersonal.trim()) return alert("Pesan tidak boleh kosong!");
     setIsMengirimChat(true);
     await kirimWA(chatPersonalAktif.nomor_hp_ortu, teksChatPersonal);
