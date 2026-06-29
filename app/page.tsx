@@ -670,7 +670,7 @@ export default function AppTK() {
     logId: string,
     deskripsi: string,
     metadata: any,
-    file: File | null,
+    file: File | null | undefined,
     waktuBaru?: string,
   ) => {
     setIsSavingEdit(true);
