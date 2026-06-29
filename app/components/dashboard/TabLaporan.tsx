@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Loading,
   ArrowRight as ArrowRightIcon,
+  Edit,
 } from "@icon-park/react";
 import type {
   Murid,
@@ -51,6 +52,7 @@ interface Props {
     sundayDate: Date;
   };
   logHarian: Record<string, LogAktivitas[]>;
+  onEditLog?: (log: LogAktivitas) => void;
 }
 
 export default function TabLaporan({
@@ -71,6 +73,7 @@ export default function TabLaporan({
   renderFoto,
   getWeekRange,
   logHarian,
+  onEditLog,
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -183,18 +186,47 @@ export default function TabLaporan({
                         {logHarian[anak.id] && (
                           <div>
                             <span className="font-bold">Aktivitas:</span>
-                            <ul className="list-disc pl-5 mt-1">
+                            <ul className="list-disc pl-5 mt-1 space-y-1">
                               {logHarian[anak.id].map(
-                                (log: any, idx: number) => (
-                                  <li key={idx}>
-                                    [
-                                    {new Date(
-                                      log.created_at,
-                                    ).toLocaleTimeString("id-ID", {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                    ] {log.deskripsi}
+                                (log: LogAktivitas, idx: number) => (
+                                  <li
+                                    key={log.id || idx}
+                                    className="flex items-start justify-between gap-2"
+                                  >
+                                    <div className="flex-1">
+                                      <span className="text-slate-600">
+                                        [
+                                        {new Date(
+                                          log.created_at,
+                                        ).toLocaleTimeString("id-ID", {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                        ] {log.deskripsi}
+                                      </span>
+                                      {log.metadata?.foto_url && (
+                                        <img
+                                          src={log.metadata.foto_url}
+                                          alt="foto"
+                                          className="mt-1 rounded-lg max-h-20 object-cover"
+                                        />
+                                      )}
+                                    </div>
+                                    {statusAnak[anak.id] !== "pulang" && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation(); // jangan expand/colapse
+                                          onEditLog?.(log);
+                                        }}
+                                        className="p-1 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors active:scale-90 shrink-0"
+                                      >
+                                        <Edit
+                                          theme="outline"
+                                          size={14}
+                                          strokeWidth={4}
+                                        />
+                                      </button>
+                                    )}
                                   </li>
                                 ),
                               )}

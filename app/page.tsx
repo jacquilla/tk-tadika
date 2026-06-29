@@ -41,6 +41,7 @@ import BottomNav from "./components/BottomNav";
 import SearchBar from "./components/SearchBar";
 import ChatModal from "./components/modals/ChatModal";
 import BroadcastModal from "./components/modals/BroadcastModal";
+import EditLogModal from "./components/modals/EditLogModal";
 
 import { supabase } from "./lib/supabase";
 import type {
@@ -71,8 +72,10 @@ const TEMPLATE_PESAN = {
 
 const getTanggalLokal = () => {
   const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().split("T")[0];
+  const tahun = d.getFullYear();
+  const bulan = String(d.getMonth() + 1).padStart(2, "0");
+  const tanggal = String(d.getDate()).padStart(2, "0");
+  return `${tahun}-${bulan}-${tanggal}`;
 };
 
 const getRangeHariWITA = (): { start: string; end: string } => {
@@ -478,6 +481,13 @@ export default function AppTK() {
         .maybeSingle();
       if (error) throw error;
       if (existing) {
+        // Cegah penimpaan jika anak sudah tercatat hadir
+        const statusSekarang = statusAnak[anak.id];
+        if (statusSekarang === "hadir") {
+          alert("Anak ini sudah tercatat hadir. Tidak bisa diubah.");
+          return;
+        }
+
         await fetch("/api/kehadiran", {
           method: "PUT",
           headers: getAuthHeaders(),
@@ -650,6 +660,112 @@ export default function AppTK() {
         logMap[l.murid_id].push(l);
       });
       setLogHarian(logMap);
+    }
+  };
+
+  const [editLogTarget, setEditLogTarget] = useState<LogAktivitas | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const handleSimpanEditLog = async (
+    logId: string,
+    deskripsi: string,
+    metadata: any,
+    file: File | null,
+    waktuBaru?: string,
+  ) => {
+    setIsSavingEdit(true);
+    try {
+      let uploadedUrl = metadata.foto_url || "";
+      if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const token = localStorage.getItem("tk-token") || "";
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        const data = await res.json();
+        if (data.imageUrl) uploadedUrl = data.imageUrl;
+        else {
+          alert("Gagal upload foto: " + data.error);
+          setIsSavingEdit(false);
+          return;
+        }
+      }
+
+      const updatedMetadata = { ...metadata, foto_url: uploadedUrl };
+
+      // Panggil API edit dengan JWT
+      const res = await fetch("/api/log-aktivitas/edit", {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          id: logId,
+          deskripsi,
+          metadata: updatedMetadata,
+          waktuBaru: waktuBaru || undefined,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        alert(result.error || "Gagal menyimpan perubahan.");
+        setIsSavingEdit(false);
+        return;
+      }
+
+      // Update state logHarian
+      setLogHarian((prev) => {
+        const newLog = { ...prev };
+        for (const muridId in newLog) {
+          newLog[muridId] = newLog[muridId].map((l) =>
+            l.id === logId
+              ? {
+                  ...l,
+                  deskripsi,
+                  metadata: updatedMetadata,
+                  ...(waktuBaru ? { created_at: waktuBaru } : {}),
+                }
+              : l,
+          );
+        }
+        return newLog;
+      });
+
+      // Update state logKegiatan
+      setLogKegiatan((prev) => {
+        const newLog = { ...prev };
+        for (const muridId in newLog) {
+          newLog[muridId] = newLog[muridId].map((l: any) =>
+            l.id === logId
+              ? {
+                  ...l,
+                  teks: deskripsi,
+                  metadata: updatedMetadata,
+                  ...(waktuBaru
+                    ? {
+                        waktu: new Date(waktuBaru).toLocaleTimeString("id-ID", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }),
+                      }
+                    : {}),
+                }
+              : l,
+          );
+        }
+        return newLog;
+      });
+
+      setEditLogTarget(null);
+      alert("Aktivitas berhasil diperbarui!");
+    } catch (err) {
+      alert("Gagal menyimpan perubahan.");
+      console.error(err);
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -985,6 +1101,7 @@ export default function AppTK() {
                     renderFoto={renderFotoMurid}
                     getWeekRange={getWeekRange}
                     logHarian={logHarian}
+                    onEditLog={(log) => setEditLogTarget(log)}
                   />
                 )}
               </div>
@@ -1040,6 +1157,13 @@ export default function AppTK() {
             onKirim={handleKirimSiaran}
             templateUmum={TEMPLATE_PESAN.umum}
             templateSpp={TEMPLATE_PESAN.spp}
+          />
+          <EditLogModal
+            log={editLogTarget}
+            onTutup={() => setEditLogTarget(null)}
+            onSimpan={handleSimpanEditLog}
+            isSaving={isSavingEdit}
+            tanggalHariIni={getTanggalLokal()}
           />
         </div>
       </div>
