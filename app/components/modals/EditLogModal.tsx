@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Image from "next/image";
 import { Edit, Close, Loading, Save, Camera, Plus } from "@icon-park/react";
 import type { LogAktivitas } from "../../types/database";
 
@@ -136,12 +137,16 @@ export default function EditLogModal({
               </label>
             </div>
             {file && <p className="text-xs text-slate-500 mt-2">{file.name}</p>}
-            {!file && log.metadata?.foto_url && (
-              <img
-                src={log.metadata.foto_url}
-                alt="foto"
-                className="mt-2 rounded-xl max-h-32 object-cover"
-              />
+            {!file && typeof log.metadata?.foto_url === "string" && (
+              <div className="mt-2 relative w-full h-32">
+                <Image
+                  src={log.metadata.foto_url}
+                  alt="foto"
+                  fill
+                  className="rounded-xl object-cover"
+                  sizes="(max-width: 768px) 100vw, 400px"
+                />
+              </div>
             )}
           </div>
         </div>
