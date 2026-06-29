@@ -204,7 +204,8 @@ export default function TabLaporan({
                                         })}
                                         ] {log.deskripsi}
                                       </span>
-                                      {log.metadata?.foto_url && (
+                                      {typeof log.metadata?.foto_url ===
+                                        "string" && (
                                         <img
                                           src={log.metadata.foto_url}
                                           alt="foto"
