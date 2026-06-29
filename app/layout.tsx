@@ -6,8 +6,9 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Absensi TK Tadika Mesra",
-  description: "Aplikasi absensi sederhana dengan notifikasi WhatsApp",
+  title: "PiaSmart -TK Tadika Mesra",
+  description:
+    "PiaSmart - Buku penghubung digital dan portal akademik cerdas TK Tadika Mesra. Pantau absensi, jurnal aktivitas harian, laporan perkembangan, dan administrasi ananda secara real-time.",
 };
 
 export default function RootLayout({
