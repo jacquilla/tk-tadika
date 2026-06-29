@@ -65,7 +65,7 @@ export default function TabKegiatan({
         Aktivitas & Daily Sheet
       </h2>
       {muridHadirFilter.length === 0 ? (
-        <div className="text-center py-16 bg-white/50 rounded-[2rem] border-2 border-dashed border-slate-200">
+        <div className="flex flex-col items-center py-16 bg-white/50 rounded-[2rem] border-2 border-dashed border-slate-200">
           <Attention
             theme="filled"
             size={48}

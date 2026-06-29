@@ -36,9 +36,16 @@ export default function EditLogModal({
   const [file, setFile] = useState<File | null>(null);
   const [metadata] = useState(log?.metadata || {});
 
-  const [editedTime, setEditedTime] = useState(
-    log ? toLocalDatetime(log.created_at) : "",
-  );
+  // Ambil jam dari log.created_at sebagai nilai awal
+  const jamDariLog = log
+    ? new Date(log.created_at).toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+    : "";
+
+  const [editedTime, setEditedTime] = useState(jamDariLog);
 
   if (!log) return null;
 
@@ -86,15 +93,13 @@ export default function EditLogModal({
               Waktu Kegiatan
             </label>
             <input
-              type="datetime-local"
+              type="time"
               className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-400 text-slate-700 font-semibold text-sm"
               value={editedTime}
-              min={minDateTime}
-              max={maxDateTime}
               onChange={(e) => setEditedTime(e.target.value)}
             />
-            <p className="text-[10px] text-slate-400 mt-1">
-              Hanya jam dan menit yang dapat diubah (hari ini).
+            <p className="text-[10px] text-slate-500 mt-1">
+              Tanggal: {tanggalHariIni} · Hanya jam yang dapat diubah
             </p>
           </div>
 
@@ -103,9 +108,11 @@ export default function EditLogModal({
               Deskripsi
             </label>
             <textarea
-              className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-400 text-slate-700 font-semibold text-sm resize-y min-h-[100px]"
+              className="w-full p-4 bg-slate-50 ..."
               value={deskripsi}
               onChange={(e) => setDeskripsi(e.target.value)}
+              autoFocus
+              onFocus={(e) => e.target.select()}
             />
           </div>
 

@@ -851,7 +851,8 @@ export default function AppTK() {
         `📝 *Aktivitas Hari Ini:*\n${rangkumanText || "- Berkegiatan rutin di kelas"}` +
         ringkasanDaily +
         `\n\n🚗 *Informasi Kepulangan:*\nAnanda telah dijemput oleh: *${siapaJemput}*\n${detailJemput ? `Keterangan: ${detailJemput}\n` : ""}` +
-        `\nTerima kasih sudah mempercayakan ananda kepada kami. Sampai jumpa besok dengan cerita baru! 😊🌈`;
+        `\nTerima kasih sudah mempercayakan ananda kepada kami. Sampai jumpa besok dengan cerita baru! 😊🌈` +
+        `\\n${namaGuru}`;
 
       await kirimWA(anak.nomor_hp_ortu, pesanFinal);
     } catch (err) {

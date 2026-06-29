@@ -1,5 +1,6 @@
+import { useState } from "react";
 import Image from "next/image";
-import { Loading, Login } from "@icon-park/react";
+import { Loading, Login, PreviewOpen, PreviewClose } from "@icon-park/react";
 
 interface LoginScreenProps {
   isLoading: boolean;
@@ -18,6 +19,9 @@ export default function LoginScreen({
   onPinChange,
   onLogin,
 }: LoginScreenProps) {
+  // State untuk mengontrol visibilitas PIN
+  const [showPin, setShowPin] = useState(false);
+
   return (
     <div className="flex-1 flex flex-col p-6 bg-white/95 fade-in relative">
       {/* Logo & Nama Sekolah */}
@@ -37,8 +41,9 @@ export default function LoginScreen({
         <div className="w-full text-center">
           <div className="relative inline-block mb-6">
             <div className="absolute inset-0 bg-indigo-200 blur-2xl rounded-full opacity-30"></div>
+            {/* Menggunakan tag img biasa karena ini mungkin aset placeholder luar, jika lokal, ganti ke <Image> */}
             <img
-              src="logo-tk.jpeg"
+              src="/logo-tk.jpeg"
               alt="Logo TK"
               className="relative w-28 h-28 mx-auto shadow-xl rounded-[2rem] border-4 border-white object-cover"
               onError={(e) => {
@@ -69,30 +74,50 @@ export default function LoginScreen({
             </div>
           ) : (
             <>
-              <div className="relative mb-4 w-full max-w-75 mx-auto">
+              {/* === KOLOM INPUT PIN === */}
+              {/* Menggunakan max-w-[280px] agar pas dan sejajar persis dengan tombol */}
+              <div className="relative mb-4 w-full max-w-[280px] mx-auto">
                 <input
-                  type="password"
+                  type={showPin ? "text" : "password"} // Dinamis berdasarkan state showPin
                   inputMode="numeric"
                   maxLength={6}
                   placeholder="Masukkan PIN"
-                  className="w-full py-3 bg-slate-50 border-2 border-slate-50 rounded-xl text-center text-xl font-bold tracking-widest outline-none focus:border-indigo-400 transition-all placeholder:text-slate-300 text-slate-700"
+                  // Menambahkan px-12 (kiri-kanan) agar teks tetap rata tengah namun tidak menabrak ikon mata
+                  className="w-full py-3 px-12 bg-slate-50 border-2 border-slate-50 rounded-xl text-center text-xl font-bold tracking-widest outline-none focus:border-indigo-400 transition-all placeholder:text-slate-400 text-slate-700"
                   value={pinLogin}
                   onChange={(e) =>
                     onPinChange(e.target.value.replace(/\D/g, ""))
                   }
                   autoFocus
                 />
+
+                {/* Tombol Toggle Ikon Mata */}
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-500 transition-colors focus:outline-none p-1"
+                  tabIndex={-1}
+                >
+                  {showPin ? (
+                    <PreviewOpen theme="outline" size={20} strokeWidth={3} />
+                  ) : (
+                    <PreviewClose theme="outline" size={20} strokeWidth={3} />
+                  )}
+                </button>
               </div>
+
               {loginError && (
                 <p className="text-rose-500 text-xs font-bold mb-4">
                   {loginError}
                 </p>
               )}
-              <div className="w-full max-w-75 mx-auto">
+
+              {/* === TOMBOL MASUK === */}
+              <div className="w-full max-w-[280px] mx-auto">
                 <button
                   disabled={isLoading || isCheckingPin}
                   onClick={onLogin}
-                  className="w-full bg-linear-to-r from-indigo-500 to-purple-500 text-white font-extrabold py-3 rounded-2xl text-sm active:scale-[0.97] transition-all disabled:opacity-50 shadow-xl shadow-indigo-200 btn-premium flex justify-center items-center gap-3"
+                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-extrabold py-3.5 rounded-2xl text-sm active:scale-[0.97] transition-all disabled:opacity-50 shadow-xl shadow-indigo-200 btn-premium flex justify-center items-center gap-3"
                 >
                   {isCheckingPin ? (
                     <Loading
