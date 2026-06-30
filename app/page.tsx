@@ -1,899 +1,616 @@
 "use client";
-import { useState, useEffect } from "react";
-import {
-  CheckOne,
-  Box,
-  Logout,
-  BankCard,
-  ChartLine,
-  Home,
-  Message,
-  Save,
-  Loading,
-  Left,
-  VolumeNotice,
-  Close,
-  User,
-  Send,
-  Attention,
-  MagicWand,
-  EmotionHappy,
-  Bowl,
-  SleepOne,
-  Calendar,
-  Search,
-  ArrowLeft,
-  ArrowRight,
-  Login,
-  Peoples,
-  BookOne,
-  Sport,
-} from "@icon-park/react";
 
-import LoginScreen from "./components/LoginScreen";
-import KelasScreen from "./components/KelasScreen";
+import { useState, useEffect, useMemo } from "react";
+import { Search, Check, VolumeNotice, Protect } from "@icon-park/react";
 import DashboardHeader from "./components/dashboard/DashboardHeader";
-import TabDatang from "./components/dashboard/TabDatang";
-import TabKegiatan from "./components/dashboard/TabKegiatan";
-import TabPulang from "./components/dashboard/TabPulang";
-import TabLaporan from "./components/dashboard/TabLaporan";
-import BottomNav from "./components/BottomNav";
-import SearchBar from "./components/SearchBar";
-import ChatModal from "./components/modals/ChatModal";
-import BroadcastModal from "./components/modals/BroadcastModal";
-import EditLogModal from "./components/modals/EditLogModal";
+import BroadcastModal from "./components/dashboard/BroadcastModal";
+import { Kehadiran, Murid, PengaturanSekolah } from "./types/database";
 
-import { supabase } from "./lib/supabase";
-import type {
-  Murid,
-  Kehadiran,
-  LogAktivitas,
-  DailySheetMeta,
-} from "./types/database";
-import { getAuthHeaders } from "./lib/api-helpers";
+interface MuridLengkap extends Murid {
+  kehadiranHariIni?: Kehadiran | null;
+}
 
-const TEMPLATE_PESAN = {
-  umum:
-    "Halo Bunda/Ayah yang luar biasa! 🌸\n\n" +
-    "Ada info penting dari TK Tadika Mesra untuk hari ini:\n\n" +
-    "[TULIS PESAN DI SINI]\n\n" +
-    "Terima kasih banyak atas perhatian dan dukungannya ya! Semoga harinya menyenangkan. ✨",
-  spp:
-    "Halo Bunda/Ayah hebat! 💐\n\n" +
-    "Semoga keluarga sehat dan bahagia selalu. Ini pesan pengingat dari kami di administrasi TK Tadika Mesra, bahwa pembayaran SPP bulan ini mungkin terlewat.\n\n" +
-    "Tapi tidak perlu khawatir ya — kalau sudah selesai, abaikan saja pesan ini. Terima kasih banyak atas dukungannya yang luar biasa demi kelancaran belajar ananda. 🙏😊",
-  bekal:
-    "Halo Bunda/Ayah tercinta! 🎒\n\n" +
-    "Agar ananda makin semangat dan nyaman beraktivitas di sekolah hari ini, mohon dibekali ya dengan:\n\n" +
-    "- Botol minum pribadi\n" +
-    "- [TAMBAHKAN KEBUTUHAN LAIN]\n\n" +
-    "Kerja sama Bunda/Ayah sangat berarti. Semoga harinya ceria! 🌈",
-};
-
-// Session timeout: 1 jam (match JWT expiry)
-const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
-
-const getTanggalLokal = () => {
-  const d = new Date();
-  const tahun = d.getFullYear();
-  const bulan = String(d.getMonth() + 1).padStart(2, "0");
-  const tanggal = String(d.getDate()).padStart(2, "0");
-  return `${tahun}-${bulan}-${tanggal}`;
-};
-
-const getRangeHariWITA = (): { start: string; end: string } => {
-  const tanggalLokal = getTanggalLokal(); // "YYYY-MM-DD" sesuai WITA
-  const start = new Date(`${tanggalLokal}T00:00:00+08:00`).toISOString();
-  const end = new Date(`${tanggalLokal}T23:59:59+08:00`).toISOString();
-  return { start, end };
-};
-
-const getMulaiHariIniUTC = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-};
-
-const getWeekRange = (offset: number = 0) => {
-  const now = new Date();
-  const day = now.getDay();
-  const diffToMonday = (day === 0 ? -6 : 1 - day) + offset * 7;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diffToMonday);
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
-  return {
-    start: monday.toISOString().split("T")[0],
-    end: sunday.toISOString().split("T")[0],
-    mondayDate: monday,
-    sundayDate: sunday,
+export default function Home() {
+  // --- Fungsi Getaran Internal ---
+  const getaranHalus = () => {
+    if (typeof window !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(50);
+    }
   };
-};
 
-/**
- * Helper untuk logout dengan cleanup
- */
-const performLogout = (setTampilan: any, setNamaGuru: any) => {
-  localStorage.removeItem("tk-token");
-  localStorage.removeItem("tk-guru-id");
-  setNamaGuru("");
-  setTampilan("login");
-};
+  // --- State Autentikasi ---
+  const [autentikasi, setAutentikasi] = useState(false);
+  const [pin, setPin] = useState("");
+  const [errorLogin, setErrorLogin] = useState("");
 
-export default function AppTK() {
-  const [tampilan, setTampilan] = useState("login");
-  const [namaGuru, setNamaGuru] = useState("");
+  // --- State Data Utama ---
+  const [daftarMurid, setDaftarMurid] = useState<MuridLengkap[]>([]);
+  const [pengaturan, setPengaturan] = useState<PengaturanSekolah | null>(null);
+
+  // --- State Guru ---
   const [guruHadir, setGuruHadir] = useState(false);
-  const [pinLogin, setPinLogin] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [isCheckingPin, setIsCheckingPin] = useState(false);
-  const [kelasAktif, setKelasAktif] = useState("");
-  const [tabAktif, setTabAktif] = useState("datang");
-  const [subTabLaporan, setSubTabLaporan] = useState<"harian" | "mingguan">(
-    "harian",
-  );
+  const [guruNama, setGuruNama] = useState("");
+  const [loadingAbsen, setLoadingAbsen] = useState(false);
 
-  const [dataSemuaMurid, setDataSemuaMurid] = useState<Murid[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  // --- State UI & Navigasi ---
+  const [tab, setTab] = useState<"utama" | "kelas">("utama");
+  const [kelasAktif, setKelasAktif] = useState<string>("mawar");
+  const [pencarian, setPencarian] = useState("");
+
+  // --- State Broadcast ---
+  const [showBroadcast, setShowBroadcast] = useState(false);
+  const [tipeSiaran, setTipeSiaran] = useState<"umum" | "spp">("umum");
+  const [teksSiaran, setTeksSiaran] = useState("");
   const [isBroadcasting, setIsBroadcasting] = useState(false);
 
-  const [statusAnak, setStatusAnak] = useState<
-    Record<string, "belum" | "hadir" | "pulang">
-  >({});
-  const [kehadiranHarian, setKehadiranHarian] = useState<
-    Record<string, Kehadiran>
-  >({});
-  const [statusDailySheetHarian, setStatusDailySheetHarian] = useState<
-    Record<string, DailySheetMeta>
-  >({});
+  // ==========================================
+  // LOGIKA AUTENTIKASI & DATA
+  // ==========================================
 
-  const [logKegiatan, setLogKegiatan] = useState<Record<string, any[]>>({});
-  const [logHarian, setLogHarian] = useState<Record<string, LogAktivitas[]>>(
-    {},
-  );
-  const [pilihanAnak, setPilihanAnak] = useState<string[]>([]);
-  const [jenisKegiatan, setJenisKegiatan] = useState("");
-
-  const [labelAktivitas, setLabelAktivitas] = useState("");
-
-  const [dailyMakan, setDailyMakan] = useState("");
-  const [dailyTidurMulai, setDailyTidurMulai] = useState("");
-  const [dailyTidurSelesai, setDailyTidurSelesai] = useState("");
-  const [dailyMood, setDailyMood] = useState("");
-
-  const [fotoAktivitas, setFotoAktivitas] = useState<File | null>(null);
-
-  const [penjemput, setPenjemput] = useState<Record<string, string>>({});
-  const [penjemputCustom, setPenjemputCustom] = useState<
-    Record<string, string>
-  >({});
-  const [ketPenjemput, setKetPenjemput] = useState<Record<string, string>>({});
-
-  const [bukaSiaran, setBukaSiaran] = useState(false);
-  const [tipeSiaran, setTipeSiaran] = useState("umum");
-  const [teksSiaran, setTeksSiaran] = useState(TEMPLATE_PESAN.umum);
-
-  const [chatPersonalAktif, setChatPersonalAktif] = useState<Murid | null>(
-    null,
-  );
-  const [teksChatPersonal, setTeksChatPersonal] = useState("");
-  const [isMengirimChat, setIsMengirimChat] = useState(false);
-
-  const [dataLaporan, setDataLaporan] = useState<Record<string, any[]>>({});
-  const [isLoadingLaporan, setIsLoadingLaporan] = useState(false);
-
-  const [cariMurid, setCariMurid] = useState("");
-
-  const [selectedStudentReport, setSelectedStudentReport] =
-    useState<Murid | null>(null);
-  const [weeklyOffset, setWeeklyOffset] = useState(0);
-  const [weeklyData, setWeeklyData] = useState<{
-    anak: Murid;
-    dailyMap: Record<
-      string,
-      { hadir: Kehadiran | null; kegiatan: LogAktivitas[] }
-    >;
-    start: string;
-    end: string;
-  } | null>(null);
-  const [isLoadingWeekly, setIsLoadingWeekly] = useState(false);
-
-  // ---------- SESSION TIMEOUT HANDLER ----------
-  useEffect(() => {
-    if (tampilan === "dashboard" || tampilan === "kelas") {
-      const timer = setTimeout(() => {
-        alert(
-          "Sesi Anda telah berakhir (token expired setelah 1 jam). Silakan login kembali."
-        );
-        performLogout(setTampilan, setNamaGuru);
-      }, SESSION_TIMEOUT_MS);
-
-      return () => clearTimeout(timer);
-    }
-  }, [tampilan]);
-
-  // ---------- DRAFT & FETCHING ----------
-  useEffect(() => {
-    if (tampilan === "dashboard" && kelasAktif) {
-      const savedDraft = localStorage.getItem(`draft_jurnal_${kelasAktif}`);
-      if (savedDraft) {
-        try {
-          const parsed = JSON.parse(savedDraft);
-          setJenisKegiatan(parsed.jenisKegiatan || "");
-          setDailyMakan(parsed.dailyMakan || "");
-          setDailyTidurMulai(parsed.dailyTidurMulai || "");
-          setDailyTidurSelesai(parsed.dailyTidurSelesai || "");
-          setDailyMood(parsed.dailyMood || "");
-          setPilihanAnak(parsed.pilihanAnak || []);
-        } catch (e) {
-          console.error("Gagal memuat draf", e);
-        }
+  const cekKehadiranGuru = async (token: string) => {
+    try {
+      const res = await fetch("/api/kehadiran-guru?today=true", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.hadir) {
+        setGuruHadir(true);
       }
+    } catch (err) {
+      console.error("Gagal memuat kehadiran guru:", err);
     }
-  }, [tampilan, kelasAktif]);
-
-  useEffect(() => {
-    if (tampilan === "dashboard" && kelasAktif) {
-      const draft = {
-        jenisKegiatan,
-        dailyMakan,
-        dailyTidurMulai,
-        dailyTidurSelesai,
-        dailyMood,
-        pilihanAnak,
-      };
-      localStorage.setItem(`draft_jurnal_${kelasAktif}`, JSON.stringify(draft));
-    }
-  }, [
-    jenisKegiatan,
-    dailyMakan,
-    dailyTidurMulai,
-    dailyTidurSelesai,
-    dailyMood,
-    pilihanAnak,
-    tampilan,
-    kelasAktif,
-  ]);
-
-  useEffect(() => {
-    const tarikDataAwal = async () => {
-      try {
-        const { data: muridData, error: muridError } = await supabase
-          .from("murid")
-          .select("*")
-          .order("nama");
-        if (muridError) throw muridError;
-        if (muridData) setDataSemuaMurid(muridData);
-
-        // ---------- DATA KEHADIRAN HARI INI ----------
-        const hariIni = getTanggalLokal();
-        const { data: hadirData, error: hadirError } = await supabase
-          .from("kehadiran")
-          .select("*")
-          .eq("tanggal", hariIni);
-        if (hadirError) throw hadirError;
-        if (hadirData) {
-          const statusMap: Record<string, "belum" | "hadir" | "pulang"> = {};
-          const detailMap: Record<string, any> = {};
-          hadirData.forEach((h) => {
-            statusMap[h.murid_id] = h.status_hadir;
-            detailMap[h.murid_id] = h;
-          });
-          setStatusAnak(statusMap);
-          setKehadiranHarian(detailMap);
-        }
-
-        // ---------- DATA DAILY SHEET (untuk ikon) ----------
-        const { start: startWITA, end: endWITA } = getRangeHariWITA();
-
-        const { data: logSheet, error: logSheetError } = await supabase
-          .from("log_aktivitas")
-          .select("murid_id, metadata")
-          .eq("kategori", "DailySheet")
-          .gte("created_at", startWITA)
-          .lt("created_at", endWITA);
-
-        if (!logSheetError && logSheet) {
-          const sheetMap: Record<string, any> = {};
-          logSheet.forEach((l) => {
-            if (!sheetMap[l.murid_id]) sheetMap[l.murid_id] = { foto_url: "" };
-            sheetMap[l.murid_id] = {
-              ...sheetMap[l.murid_id],
-              ...(l.metadata || {}),
-            };
-            if (l.metadata?.foto_url) {
-              sheetMap[l.murid_id].foto_url = sheetMap[l.murid_id].foto_url
-                ? sheetMap[l.murid_id].foto_url + "," + l.metadata.foto_url
-                : l.metadata.foto_url;
-            }
-          });
-          setStatusDailySheetHarian(sheetMap);
-        }
-
-        // ---------- SEMUA LOG HARI INI (untuk laporan harian) ----------
-        const { data: logHarianData, error: logHarianError } = await supabase
-          .from("log_aktivitas")
-          .select("*")
-          .gte("created_at", startWITA)
-          .lt("created_at", endWITA);
-
-        if (logHarianData) {
-          const logMap: Record<string, any[]> = {};
-          logHarianData.forEach((l) => {
-            if (!logMap[l.murid_id]) logMap[l.murid_id] = [];
-            logMap[l.murid_id].push(l);
-          });
-          setLogHarian(logMap);
-        }
-      } catch (err) {
-        console.error("Gagal mengambil data awal:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    tarikDataAwal();
-
-    const realtimeChannel = supabase
-      .channel("public:kehadiran")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "kehadiran" },
-        (payload) => {
-          const record = payload.new as Kehadiran;
-          if (record && record.murid_id && record.status_hadir) {
-            setStatusAnak((prev) => ({
-              ...prev,
-              [record.murid_id]: record.status_hadir,
-            }));
-            setKehadiranHarian((prev) => ({
-              ...prev,
-              [record.murid_id]: record,
-            }));
-          }
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(realtimeChannel);
-    };
-  }, []);
-
-  useEffect(() => {
-    const cekKehadiranGuru = async () => {
-      const storedGuruId = localStorage.getItem("tk-guru-id");
-      if (storedGuruId && tampilan === "dashboard") {
-        const today = new Date().toISOString().split("T")[0];
-        const { data } = await supabase
-          .from("kehadiran_guru")
-          .select("id")
-          .eq("guru_id", storedGuruId)
-          .eq("tanggal", today)
-          .maybeSingle();
-        if (data) setGuruHadir(true);
-      }
-    };
-    cekKehadiranGuru();
-  }, [tampilan]);
-
-  // ---------- DERIVED DATA ----------
-  const muridSemua = dataSemuaMurid.filter(
-    (m) => m.kelas.toLowerCase() === kelasAktif.toLowerCase(),
-  );
-  const muridBelumHadir = muridSemua.filter(
-    (a) => !statusAnak[a.id] || statusAnak[a.id] === "belum",
-  );
-  const muridHadir = muridSemua.filter((a) => statusAnak[a.id] === "hadir");
-
-  const filterNama = (list: any[]) => {
-    if (!cariMurid.trim()) return list;
-    return list.filter((m) =>
-      m.nama.toLowerCase().includes(cariMurid.toLowerCase().trim()),
-    );
-  };
-  const muridBelumHadirFilter = filterNama(muridBelumHadir);
-  const muridHadirFilter = filterNama(muridHadir);
-  const muridSemuaFilter = filterNama(muridSemua);
-
-  const getaranHalus = () => {
-    if (typeof window !== "undefined" && navigator.vibrate)
-      navigator.vibrate(50);
   };
 
   const handleLogin = async () => {
-    if (!pinLogin.trim()) {
-      setLoginError("Masukkan PIN terlebih dahulu.");
-      return;
-    }
-    setIsCheckingPin(true);
-    setLoginError("");
+    getaranHalus();
+    setErrorLogin("");
     try {
-      const { data, error } = await supabase
-        .from("guru")
-        .select("id, nama")
-        .eq("pin_login", pinLogin.trim())
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) {
-        setLoginError("PIN tidak dikenali. Coba lagi.");
-        setIsCheckingPin(false);
-        return;
-      }
-      setNamaGuru(data.nama);
-
-      // Simpan token JWT DULU
-      const authRes = await fetch("/api/auth", {
+      const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: pinLogin.trim(), role: "guru" }),
+        body: JSON.stringify({ pin, role: "guru" }),
       });
-      const authData = await authRes.json();
-      if (authData.token) {
-        localStorage.setItem("tk-token", authData.token);
-      }
+      const data = await res.json();
 
-      // Simpan ID guru di localStorage agar bisa dicek nanti
-      localStorage.setItem("tk-guru-id", data.id);
-
-      // Baru catat kehadiran (sekarang getAuthHeaders() sudah berisi token)
-      try {
-        const res = await fetch("/api/kehadiran-guru", {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ guru_id: data.id }),
-        });
-        if (res.ok) {
-          setGuruHadir(true);
+      if (res.ok && data.token) {
+        localStorage.setItem("tk-token", data.token);
+        if (data.guru) {
+          setGuruNama(data.guru.nama);
         }
-      } catch (e) {
-        console.error("Gagal mencatat kehadiran guru:", e);
+        setAutentikasi(true);
+        // Cek apakah guru ini sudah absen hari ini
+        await cekKehadiranGuru(data.token);
+      } else {
+        setErrorLogin(data.error || "PIN salah");
       }
-
-      setTampilan("kelas");
     } catch (err) {
-      setLoginError("Gagal memeriksa PIN. Periksa koneksi.");
-    } finally {
-      setIsCheckingPin(false);
+      setErrorLogin("Gagal terhubung ke server");
     }
   };
 
-  // ---------- FUNGSI BISNIS ----------
-  const catatKegiatan = async (
-    idAnak: string,
-    teksKegiatan: string,
-    kategori = "Umum",
-    metadata = {},
-  ) => {
-    const waktu = new Date().toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    setLogKegiatan((prev) => ({
-      ...prev,
-      [idAnak]: [
-        ...(prev[idAnak] || []),
-        { waktu, teks: teksKegiatan, metadata, kategori },
-      ],
-    }));
-    try {
-      await fetch("/api/log-aktivitas", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          murid_id: idAnak,
-          deskripsi: teksKegiatan,
-          kategori,
-          metadata,
-        }),
-      });
-    } catch (err) {
-      console.error("Gagal mencatat aktivitas:", err);
+  // Cek token tersimpan saat aplikasi dimuat
+  useEffect(() => {
+    const token = localStorage.getItem("tk-token");
+    if (token) {
+      setAutentikasi(true);
+      cekKehadiranGuru(token);
     }
-  };
+  }, []);
 
-  const kirimWA = async (nomorHp: string, pesan: string) => {
-    if (!nomorHp) return;
+  const ambilData = async () => {
     try {
-      const res = await fetch("/api/wa", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ targetHp: nomorHp, pesanCustom: pesan }),
-      });
-      if (!res.ok) throw new Error("Respon API tidak ok");
-    } catch (e) {
-      alert("Gagal mengirim pesan WhatsApp. Periksa koneksi atau nomor HP.");
-    }
-  };
+      const token = localStorage.getItem("tk-token") || "";
+      const headers = { Authorization: `Bearer ${token}` };
 
-  const bukaChatPersonal = (anak: Murid) => {
-    getaranHalus();
-    setChatPersonalAktif(anak);
-    setTeksChatPersonal(
-      `Halo Bunda/Ayah Ananda ${anak.nama} yang hebat! 🌼\n\n`,
-    );
-  };
+      const [resMurid, resHadir, resAtur] = await Promise.all([
+        fetch("/api/murid", { headers }),
+        fetch("/api/kehadiran", { headers }),
+        fetch("/api/pengaturan-sekolah", { headers }),
+      ]);
 
-  const handleKirimChatPersonal = async () => {
-    if (!chatPersonalAktif) return;
-    if (!teksChatPersonal.trim()) return alert("Pesan tidak boleh kosong!");
-    setIsMengirimChat(true);
-    await kirimWA(chatPersonalAktif.nomor_hp_ortu, teksChatPersonal);
-    setIsMengirimChat(false);
-    setChatPersonalAktif(null);
-    alert(`Pesan berhasil terkirim ke orang tua ${chatPersonalAktif.nama}!`);
-  };
-
-  const handleDatang = async (anak: Murid) => {
-    getaranHalus();
-    const today = getTanggalLokal();
-    const nowStr = new Date().toISOString();
-    const timeDatang = new Date().toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    try {
-      // Cek apakah sudah ada record kehadiran hari ini (SELECT masih aman)
-      const { data: existing, error } = await supabase
-        .from("kehadiran")
-        .select("id")
-        .eq("murid_id", anak.id)
-        .eq("tanggal", today)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (existing) {
-        // Jangan timpa jika sudah hadir
-        const statusSekarang = statusAnak[anak.id];
-        if (statusSekarang === "hadir") {
-          alert("Anak ini sudah tercatat hadir. Tidak bisa diubah.");
+      if (!resMurid.ok) {
+        if (resMurid.status === 401 || resMurid.status === 403) {
+          setAutentikasi(false);
+          localStorage.removeItem("tk-token");
           return;
         }
-
-        // Kirim PUT ke API (aman, pakai service key + JWT)
-        await fetch("/api/kehadiran", {
-          method: "PUT",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            id: existing.id,
-            status_hadir: "hadir",
-            waktu_datang: nowStr,
-          }),
-        });
-      } else {
-        // Belum ada record → POST ke API
-        await fetch("/api/kehadiran", {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            murid_id: anak.id,
-            status_hadir: "hadir",
-            waktu_datang: nowStr,
-            tanggal: today,
-          }),
-        });
       }
 
-      // Update state lokal
-      setStatusAnak((prev) => ({ ...prev, [anak.id]: "hadir" }));
+      const muridData = await resMurid.json();
+      const kehadiranData = await resHadir.json();
+      const pengaturanData = await resAtur.json();
 
-      // Catat log aktivitas (sudah pakai API)
-      catatKegiatan(
-        anak.id,
-        "Tiba di sekolah dengan ceria (Check-In)",
-        "Kehadiran",
+      const today = new Date().toISOString().split("T")[0];
+      const kehadiranHariIni = (kehadiranData.data || []).filter(
+        (k: Kehadiran) => k.tanggal === today,
       );
 
-      // Kirim WA
-      const pesanDatang =
-        `🌸 Halo Bunda/Ayah! 🌸\n\n` +
-        `Kabar gembira! Ananda *${anak.nama}* sudah sampai di sekolah dengan selamat pada pukul *${timeDatang}*.\n\n` +
-        `Semoga hari ini penuh tawa, belajar seru, dan bermain asyik ya! Sampai jumpa nanti. 🥰✨`;
-      await kirimWA(anak.nomor_hp_ortu, pesanDatang);
+      const muridLengkap = (muridData.data || []).map((m: Murid) => {
+        const hadir = kehadiranHariIni.find(
+          (k: Kehadiran) => k.murid_id === m.id,
+        );
+        return { ...m, kehadiranHariIni: hadir || null };
+      });
+
+      setDaftarMurid(muridLengkap);
+      setPengaturan(pengaturanData.data?.[0] || null);
     } catch (err) {
-      alert("Gagal menyimpan data kehadiran.");
+      console.error("Gagal mengambil data:", err);
     }
   };
 
-  const handlePilihLabel = (label: string) => {
-    // Sekarang pengelolaan label sepenuhnya dilakukan di TabKegiatan
-    // Kita hanya perlu menyimpan label yang aktif (opsional)
-    setLabelAktivitas(label);
-    // Tidak mengisi jenisKegiatan lagi
+  useEffect(() => {
+    if (autentikasi) {
+      ambilData();
+    }
+  }, [autentikasi]);
+
+  // ==========================================
+  // HANDLERS AKSI
+  // ==========================================
+
+  const absenGuru = async () => {
+    getaranHalus();
+    setLoadingAbsen(true);
+    try {
+      const token = localStorage.getItem("tk-token");
+      const res = await fetch("/api/kehadiran-guru", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        setGuruHadir(true);
+      } else {
+        const data = await res.json();
+        alert(data.error || "Gagal absen.");
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan jaringan.");
+    } finally {
+      setLoadingAbsen(false);
+    }
   };
 
-  const simpanKegiatanMassal = async () => {
+  const handleKehadiran = async (muridId: string, statusHadir: string) => {
     getaranHalus();
-    if (pilihanAnak.length === 0) return alert("Pilih minimal 1 anak!");
-    if (
-      !jenisKegiatan &&
-      !dailyMakan &&
-      !dailyMood &&
-      !dailyTidurMulai &&
-      !dailyTidurSelesai &&
-      !fotoAktivitas
-    )
-      return alert("Isi catatan kegiatan, foto, atau daily sheet!");
-    setIsSaving(true);
+    const token = localStorage.getItem("tk-token") || "";
+    const m = daftarMurid.find((x) => x.id === muridId);
+    if (!m) return;
 
-    let uploadedImageUrl = "";
-    if (fotoAktivitas) {
+    // Optimistic UI update
+    setDaftarMurid((prev) =>
+      prev.map((anak) =>
+        anak.id === muridId
+          ? {
+              ...anak,
+              kehadiranHariIni: {
+                ...anak.kehadiranHariIni,
+                id: anak.kehadiranHariIni?.id || "temp",
+                murid_id: muridId,
+                tanggal: new Date().toISOString().split("T")[0],
+                status_hadir: statusHadir,
+              } as Kehadiran,
+            }
+          : anak,
+      ),
+    );
+
+    try {
+      await fetch("/api/kehadiran", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          murid_id: muridId,
+          status_hadir: statusHadir,
+        }),
+      });
+      ambilData();
+    } catch (err) {
+      console.error("Gagal update kehadiran:", err);
+      ambilData(); // Revert jika gagal
+    }
+  };
+
+  const kirimSiaran = async () => {
+    getaranHalus();
+    if (!teksSiaran.trim()) return;
+    setIsBroadcasting(true);
+
+    const token = localStorage.getItem("tk-token") || "";
+    const targetMurid = filterMuridKelas(kelasAktif);
+    let sukses = 0;
+
+    for (const m of targetMurid) {
+      if (!m.nomor_hp_ortu) continue;
+
+      let pesan = teksSiaran
+        .replace(/\[Nama\]/g, m.nama)
+        .replace(/\[Kelas\]/g, m.kelas);
+
+      if (tipeSiaran === "spp") {
+        pesan = pesan.replace(
+          /\[Nominal\]/g,
+          `Rp ${(m.nominal_spp || 350000).toLocaleString("id-ID")}`,
+        );
+      }
+
       try {
-        const formData = new FormData();
-        formData.append("file", fotoAktivitas);
-        const token = localStorage.getItem("tk-token") || "";
-        const res = await fetch("/api/upload", {
+        await fetch("/api/wa", {
           method: "POST",
           headers: {
+            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: formData,
-        });
-        const data = await res.json();
-        if (data.imageUrl) uploadedImageUrl = data.imageUrl;
-        else {
-          alert("Gagal upload ke Drive: " + data.error);
-          setIsSaving(false);
-          return;
-        }
-      } catch (error) {
-        alert("Kesalahan jaringan saat upload.");
-        setIsSaving(false);
-        return;
-      }
-    }
-
-    for (const id of pilihanAnak) {
-      const prevMeta = statusDailySheetHarian[id] || {};
-      const newMakan = dailyMakan || prevMeta.makan || null;
-      const newTidur =
-        dailyTidurMulai &&
-        dailyTidurSelesai &&
-        `${dailyTidurMulai} - ${dailyTidurSelesai}`;
-
-      const metadata = {
-        makan: newMakan,
-        tidur: newTidur || prevMeta.tidur || null,
-        mood: dailyMood || prevMeta.mood || null,
-        foto_url: uploadedImageUrl
-          ? prevMeta.foto_url
-            ? prevMeta.foto_url + "," + uploadedImageUrl
-            : uploadedImageUrl
-          : prevMeta.foto_url || null,
-      };
-
-      try {
-        await fetch("/api/log-aktivitas", {
-          method: "POST",
-          headers: getAuthHeaders(),
           body: JSON.stringify({
-            murid_id: id,
-            deskripsi: jenisKegiatan || "Daily Sheet",
-            kategori: "DailySheet",
-            metadata,
+            targetHp: m.nomor_hp_ortu,
+            pesanCustom: pesan,
           }),
         });
-      } catch (error) {
-        console.error("Gagal catat daily sheet untuk anak:", id, error);
+        sukses++;
+      } catch (err) {
+        console.error(`Gagal kirim ke ${m.nama}`);
       }
     }
 
-    // Update status lokal
-    for (const id of pilihanAnak) {
-      setStatusDailySheetHarian((prev) => ({
-        ...prev,
-        [id]: {
-          ...prev[id],
-          makan: dailyMakan || prev[id]?.makan || null,
-          tidur:
-            (dailyTidurMulai &&
-              dailyTidurSelesai &&
-              `${dailyTidurMulai} - ${dailyTidurSelesai}`) ||
-            prev[id]?.tidur ||
-            null,
-          mood: dailyMood || prev[id]?.mood || null,
-          foto_url: uploadedImageUrl
-            ? prev[id]?.foto_url
-              ? prev[id].foto_url + "," + uploadedImageUrl
-              : uploadedImageUrl
-            : prev[id]?.foto_url || null,
-        },
-      }));
-    }
-
-    localStorage.removeItem(`draft_jurnal_${kelasAktif}`);
-    setPilihanAnak([]);
-    setJenisKegiatan("");
-    setDailyMakan("");
-    setDailyTidurMulai("");
-    setDailyTidurSelesai("");
-    setDailyMood("");
-    setFotoAktivitas(null);
-    setLabelAktivitas("");
-    setIsSaving(false);
-    alert("Jurnal & Foto berhasil disimpan! (akan dirangkum saat pulang)");
-
-    // Refresh log harian agar laporan langsung terupdate
+    setIsBroadcasting(false);
+    setShowBroadcast(false);
+    alert(`Siaran berhasil dikirim ke ${sukses} kontak!`);
   };
 
+  const handlePilihTipe = (tipe: string, template: string) => {
+    setTipeSiaran(tipe as "umum" | "spp");
+    setTeksSiaran(template);
+  };
+
+  // ==========================================
+  // HELPERS
+  // ==========================================
+
+  const filterMuridKelas = (kelas: string): MuridLengkap[] => {
+    return daftarMurid.filter((m) => m.kelas === kelas);
+  };
+
+  const listMuridTampil = useMemo(() => {
+    return filterMuridKelas(kelasAktif).filter((m) =>
+      m.nama.toLowerCase().includes(pencarian.toLowerCase()),
+    );
+  }, [daftarMurid, kelasAktif, pencarian]);
+
+  // ==========================================
+  // RENDER UI
+  // ==========================================
+
+  if (!autentikasi) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 relative overflow-hidden p-6 fade-in">
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+          <div className="absolute -top-[10%] -right-[10%] w-[50%] h-[50%] rounded-full bg-indigo-300/30 blur-[100px]"></div>
+          <div className="absolute -bottom-[10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-purple-300/30 blur-[100px]"></div>
+        </div>
+
+        <div className="w-full max-w-sm bg-white/80 backdrop-blur-2xl border border-white rounded-[2.5rem] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] relative z-10 slide-up">
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 shadow-inner">
+              <Protect theme="outline" size={32} strokeWidth={3} />
+            </div>
+          </div>
+          <h1 className="text-2xl font-extrabold text-slate-800 text-center tracking-tight mb-2">
+            Portal Guru
+          </h1>
+          <p className="text-xs font-bold text-slate-400 text-center uppercase tracking-widest mb-8">
+            Verifikasi Identitas
+          </p>
+
+          <input
+            type="password"
+            inputMode="numeric"
+            placeholder="Masukkan PIN"
+            className="w-full py-4 text-center text-xl tracking-widest font-extrabold border-2 border-slate-100 rounded-2xl mb-4 outline-none focus:border-indigo-400 focus:bg-white bg-slate-50 transition-all text-slate-700"
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+            autoFocus
+          />
+          {errorLogin && (
+            <p className="text-rose-500 text-xs font-bold text-center mb-4 bg-rose-50 py-2 rounded-xl">
+              {errorLogin}
+            </p>
+          )}
+          <button
+            onClick={handleLogin}
+            className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-extrabold py-4 rounded-2xl text-sm active:scale-95 transition-all shadow-[0_10px_25px_rgba(99,102,241,0.3)] btn-premium tracking-wide"
+          >
+            Masuk Kelas
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            @keyframes fade-in {
-              from { opacity: 0; }
-              to { opacity: 1; }
-            }
-            html { scroll-behavior: smooth; }
-            .fade-in { animation: fade-in 0.5s ease-in; }
-            .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-            .hide-scrollbar::-webkit-scrollbar { display: none; }
-          `,
-        }}
-      />
+    <div className="max-w-md mx-auto relative bg-slate-50 min-h-screen font-sans shadow-2xl shadow-slate-200/50 fade-in">
+      {/* ----------------- TAB UTAMA (Pilih Kelas) ----------------- */}
+      {tab === "utama" && (
+        <div className="min-h-screen p-6 flex flex-col justify-center relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-200/40 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
 
-      {tampilan === "login" && (
-        <LoginScreen
-          pinLogin={pinLogin}
-          onPinChange={setPinLogin}
-          error={loginError}
-          isLoading={isCheckingPin}
-          onLogin={handleLogin}
-        />
-      )}
+          <div className="relative z-10 mb-10 text-center">
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">
+              Halo, {guruNama || "Guru"}! 👋
+            </h1>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+              Pilih kelas yang ingin dikelola
+            </p>
+          </div>
 
-      {tampilan === "kelas" && (
-        <KelasScreen
-          namaGuru={namaGuru}
-          jumlahMawar={muridSemua.filter((m) => m.kelas === "Mawar").length}
-          jumlahMelati={muridSemua.filter((m) => m.kelas === "Melati").length}
-          onPilihKelas={(kelas) => {
-            setKelasAktif(kelas);
-            setTabAktif("datang");
-            setTampilan("dashboard");
-          }}
-          onLogout={() => performLogout(setTampilan, setNamaGuru)}
-        />
-      )}
+          <div className="grid grid-cols-2 gap-4 relative z-10">
+            {/* Kelas Mawar */}
+            <button
+              onClick={() => {
+                getaranHalus();
+                setKelasAktif("mawar");
+                setTab("kelas");
+              }}
+              className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_50px_rgba(0,0,0,0.06)] hover:-translate-y-1 transition-all flex flex-col items-center gap-3 active:scale-95"
+            >
+              <div className="w-16 h-16 rounded-[1.25rem] bg-rose-50 text-3xl flex items-center justify-center border border-rose-100 shadow-inner">
+                🌸
+              </div>
+              <span className="font-extrabold text-slate-700 text-sm tracking-wide">
+                Mawar
+              </span>
+            </button>
 
-      {tampilan === "dashboard" && (
-        <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-purple-50 pb-32 fade-in">
-          <DashboardHeader
-            namaGuru={namaGuru}
-            kelasAktif={kelasAktif}
-            onKembali={() => {
-              setTampilan("kelas");
-              setKelasAktif("");
-            }}
-            onLogout={() => performLogout(setTampilan, setNamaGuru)}
-          />
-
-          <SearchBar
-            placeholder="Cari nama anak..."
-            value={cariMurid}
-            onChange={setCariMurid}
-          />
-
-          {tabAktif === "datang" && (
-            <TabDatang
-              muridBelumHadirFilter={muridBelumHadirFilter}
-              muridHadirFilter={muridHadirFilter}
-              statusAnak={statusAnak}
-              statusDailySheetHarian={statusDailySheetHarian}
-              onDatang={handleDatang}
-              isLoading={isLoading}
-            />
-          )}
-
-          {tabAktif === "kegiatan" && (
-            <TabKegiatan
-              muridSemuaFilter={muridSemuaFilter}
-              logKegiatan={logKegiatan}
-              logHarian={logHarian}
-              pilihanAnak={pilihanAnak}
-              onPilihAnak={(id) =>
-                setPilihanAnak(
-                  pilihanAnak.includes(id)
-                    ? pilihanAnak.filter((x) => x !== id)
-                    : [...pilihanAnak, id],
-                )
-              }
-              jenisKegiatan={jenisKegiatan}
-              onJenisKegiatanChange={setJenisKegiatan}
-              dailyMakan={dailyMakan}
-              onMakanChange={setDailyMakan}
-              dailyTidurMulai={dailyTidurMulai}
-              onTidurMulaiChange={setDailyTidurMulai}
-              dailyTidurSelesai={dailyTidurSelesai}
-              onTidurSelesaiChange={setDailyTidurSelesai}
-              dailyMood={dailyMood}
-              onMoodChange={setDailyMood}
-              fotoAktivitas={fotoAktivitas}
-              onFotoChange={setFotoAktivitas}
-              isSaving={isSaving}
-              onSimpan={simpanKegiatanMassal}
-              labelAktivitas={labelAktivitas}
-              onPilihLabel={handlePilihLabel}
-              onBukaChat={bukaChatPersonal}
-              onKirimSiaran={() => setBukaSiaran(true)}
-              onEditLog={(log) => {}}
-            />
-          )}
-
-          {tabAktif === "pulang" && (
-            <TabPulang
-              muridHadirFilter={muridHadirFilter}
-              kehadiranHarian={kehadiranHarian}
-              penjemput={penjemput}
-              penjemputCustom={penjemputCustom}
-              ketPenjemput={ketPenjemput}
-              statusAnak={statusAnak}
-              onPenjemputChange={(id, value) =>
-                setPenjemput({ ...penjemput, [id]: value })
-              }
-              onPenjemputCustomChange={(id, value) =>
-                setPenjemputCustom({ ...penjemputCustom, [id]: value })
-              }
-              onKetPenjemputChange={(id, value) =>
-                setKetPenjemput({ ...ketPenjemput, [id]: value })
-              }
-              onPulang={(anak) => {}}
-            />
-          )}
-
-          {tabAktif === "laporan" && (
-            <TabLaporan
-              muridSemuaFilter={muridSemuaFilter}
-              selectedStudentReport={selectedStudentReport}
-              onSelectStudent={setSelectedStudentReport}
-              subTabLaporan={subTabLaporan}
-              onSubTabChange={setSubTabLaporan}
-              logHarian={logHarian}
-              weeklyOffset={weeklyOffset}
-              onWeeklyOffsetChange={setWeeklyOffset}
-              isLoadingLaporan={isLoadingLaporan}
-              isLoadingWeekly={isLoadingWeekly}
-              weeklyData={weeklyData}
-            />
-          )}
-
-          <BottomNav
-            tabAktif={tabAktif}
-            onTabChange={setTabAktif}
-            guruHadir={guruHadir}
-          />
+            {/* Kelas Melati */}
+            <button
+              onClick={() => {
+                getaranHalus();
+                setKelasAktif("melati");
+                setTab("kelas");
+              }}
+              className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_50px_rgba(0,0,0,0.06)] hover:-translate-y-1 transition-all flex flex-col items-center gap-3 active:scale-95"
+            >
+              <div className="w-16 h-16 rounded-[1.25rem] bg-amber-50 text-3xl flex items-center justify-center border border-amber-100 shadow-inner">
+                🌼
+              </div>
+              <span className="font-extrabold text-slate-700 text-sm tracking-wide">
+                Melati
+              </span>
+            </button>
+          </div>
         </div>
       )}
 
-      <ChatModal
-        anak={chatPersonalAktif}
-        teks={teksChatPersonal}
-        onTeksChange={setTeksChatPersonal}
-        isLoading={isMengirimChat}
-        onKirim={handleKirimChatPersonal}
-        onTutup={() => setChatPersonalAktif(null)}
-      />
+      {/* ----------------- TAB KELAS (Manajemen Kelas) ----------------- */}
+      {tab === "kelas" && (
+        <div className="pb-32 bg-slate-50 min-h-screen">
+          <DashboardHeader
+            kelasAktif={kelasAktif}
+            muridHadir={
+              filterMuridKelas(kelasAktif).filter(
+                (m) => m.kehadiranHariIni?.status_hadir === "hadir",
+              ).length
+            }
+            guruHadir={guruHadir}
+            onKembali={() => {
+              getaranHalus();
+              setTab("utama");
+            }}
+          />
 
+          {/* BANNER ABSEN GURU - Tampil jika belum absen */}
+          {!guruHadir && (
+            <div className="mx-5 mt-5 mb-2 p-4 bg-white rounded-[2rem] border-2 border-rose-100 shadow-[0_8px_20px_rgba(244,63,94,0.08)] flex items-center justify-between slide-up relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-full blur-2xl pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
+              <div className="relative z-10">
+                <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-0.5">
+                  Tugas Hari Ini
+                </p>
+                <p className="text-sm font-black text-slate-800">
+                  Anda belum Check-In 👩‍🏫
+                </p>
+              </div>
+              <button
+                onClick={absenGuru}
+                disabled={loadingAbsen}
+                className="relative z-10 px-4 py-3 bg-rose-500 text-white font-black text-xs rounded-2xl active:scale-95 transition-all shadow-[0_4px_15px_rgba(244,63,94,0.3)] hover:bg-rose-600 disabled:opacity-70"
+              >
+                {loadingAbsen ? "Tunggu..." : "Hadir Sekarang"}
+              </button>
+            </div>
+          )}
+
+          {/* Search Bar - Sticky */}
+          <div className="px-5 pt-4 pb-2 sticky top-[100px] z-30 bg-slate-50/90 backdrop-blur-md">
+            <div className="relative">
+              <Search
+                theme="outline"
+                size={18}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="text"
+                placeholder="Cari nama murid..."
+                value={pencarian}
+                onChange={(e) => setPencarian(e.target.value)}
+                className="w-full pl-11 pr-4 py-4 bg-white border-2 border-slate-100 rounded-[1.5rem] text-xs font-bold outline-none focus:border-indigo-400 focus:bg-white transition-all text-slate-700 shadow-sm placeholder:text-slate-400"
+              />
+            </div>
+          </div>
+
+          <div className="px-5 pt-4">
+            <div className="flex justify-between items-end mb-5">
+              <div>
+                <h2 className="text-lg font-black text-slate-800 tracking-tight">
+                  Check-In Pagi
+                </h2>
+                <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">
+                  Ketuk ceklis untuk hadir
+                </p>
+              </div>
+              <div className="inline-flex items-center gap-1.5 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider text-rose-600 shadow-sm">
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
+                <span>
+                  {
+                    filterMuridKelas(kelasAktif).filter(
+                      (m) => m.kehadiranHariIni?.status_hadir !== "hadir",
+                    ).length
+                  }{" "}
+                  Belum Hadir
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+              {listMuridTampil.map((murid) => {
+                const sudahHadir =
+                  murid.kehadiranHariIni?.status_hadir === "hadir";
+
+                return (
+                  <div
+                    key={murid.id}
+                    className={`relative p-3.5 rounded-[2rem] border-2 transition-all duration-300 flex flex-col shadow-sm ${
+                      sudahHadir
+                        ? "bg-white border-emerald-100"
+                        : "bg-white border-slate-100 hover:border-indigo-100"
+                    }`}
+                  >
+                    <div className="relative w-full aspect-square rounded-[1.25rem] overflow-hidden mb-3 bg-slate-50 border border-slate-100">
+                      {murid.foto_url ? (
+                        <img
+                          src={murid.foto_url}
+                          alt={murid.nama}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-indigo-50/50">
+                          <span className="text-3xl font-black text-indigo-600/30">
+                            {murid.nama.substring(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Lencana Kelas (Kecil di sudut) */}
+                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center">
+                        <span className="text-[10px] opacity-70">
+                          {murid.kelas === "mawar" ? "🌸" : "🌼"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center px-1 pb-1">
+                      <p className="font-extrabold text-slate-800 text-[11px] truncate w-2/3 tracking-tight">
+                        {murid.nama}
+                      </p>
+                      <button
+                        onClick={() =>
+                          handleKehadiran(
+                            murid.id,
+                            sudahHadir ? "pulang" : "hadir",
+                          )
+                        }
+                        className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center transition-all ${
+                          sudahHadir
+                            ? "bg-emerald-500 text-white shadow-md shadow-emerald-200"
+                            : "bg-slate-100 text-slate-400 hover:bg-emerald-50 hover:text-emerald-500"
+                        }`}
+                      >
+                        <Check theme="outline" size={14} strokeWidth={4} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- TOMBOL FAB BROADCAST ----------------- */}
+      {tab === "kelas" && (
+        <button
+          onClick={() => {
+            getaranHalus();
+            setTipeSiaran("umum");
+            setTeksSiaran(
+              pengaturan?.template_pesan_umum ||
+                "Pengumuman: [Nama] kelas [Kelas]...",
+            );
+            setShowBroadcast(true);
+          }}
+          className="fixed bottom-28 right-6 w-[56px] h-[56px] bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full shadow-[0_10px_25px_rgba(245,158,11,0.4)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-40 btn-premium"
+        >
+          <VolumeNotice theme="outline" size={26} strokeWidth={4} />
+        </button>
+      )}
+
+      {/* ----------------- BOTTOM NAVIGATION PILL ----------------- */}
+      {tab === "kelas" && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-white/95 backdrop-blur-xl border border-slate-100 p-2 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.08)] flex justify-around items-center z-50">
+          <button className="flex flex-col items-center gap-1 p-2 w-16 text-indigo-600 active:scale-90 transition-transform relative">
+            <div className="absolute -top-3 w-1 h-1 bg-indigo-600 rounded-full"></div>
+            <Check theme="filled" size={22} />
+            <span className="text-[9px] font-black uppercase tracking-wider">
+              Tiba
+            </span>
+          </button>
+
+          <button className="flex flex-col items-center gap-1 p-2 w-16 text-slate-300 hover:text-indigo-400 transition-colors active:scale-90 relative">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 48 48"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M24 44C35.0457 44 44 35.0457 44 24C44 12.9543 35.0457 4 24 4C12.9543 4 4 12.9543 4 24C4 35.0457 12.9543 44 24 44Z"
+                fill="currentColor"
+                fillOpacity="0.1"
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M24 16A3 3 0 1 0 24 22A3 3 0 1 0 24 16Z"
+                fill="currentColor"
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M15 31L18.4239 25.8647C19.2329 24.6511 21.0366 24.5222 21.9961 25.6117L26.0039 30.159C26.9634 31.2485 28.7671 31.1196 29.5761 29.906L33 24"
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className="text-[9px] font-black uppercase tracking-wider opacity-0">
+              Buku
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* ----------------- MODAL BROADCAST ----------------- */}
       <BroadcastModal
-        terbuka={bukaSiaran}
-        tipe={tipeSiaran}
-        onTipeChange={setTipeSiaran}
-        teks={teksSiaran}
-        onTeksChange={setTeksSiaran}
-        templateUmum={TEMPLATE_PESAN.umum}
-        templateSpp={TEMPLATE_PESAN.spp}
-        templateBekal={TEMPLATE_PESAN.bekal}
-        onTutup={() => setBukaSiaran(false)}
+        bukaSiaran={showBroadcast}
+        tipeSiaran={tipeSiaran}
+        teksSiaran={teksSiaran}
+        isBroadcasting={isBroadcasting}
+        onTutup={() => setShowBroadcast(false)}
+        onUbahTeks={setTeksSiaran}
+        onPilihTipe={handlePilihTipe}
+        onKirim={kirimSiaran}
+        templateUmum={pengaturan?.template_pesan_umum || ""}
+        templateSpp={pengaturan?.template_pesan_spp || ""}
       />
-
-      <EditLogModal
-        log={null}
-        onTutup={() => {}}
-      />
-    </>
+    </div>
   );
 }
