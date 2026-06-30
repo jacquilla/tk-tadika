@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Search, Check, VolumeNotice, Protect } from "@icon-park/react";
 import DashboardHeader from "./components/dashboard/DashboardHeader";
-import BroadcastModal from "./components/dashboard/BroadcastModal";
+import BroadcastModal from "./components/modals/BroadcastModal";
 import { Kehadiran, Murid, PengaturanSekolah } from "./types/database";
 
 interface MuridLengkap extends Murid {
