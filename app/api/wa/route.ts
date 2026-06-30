@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/app/lib/verify-token";
+import { requireAuth } from "@/app/lib/verify-token";
 
 export async function POST(request: Request) {
-  if (!verifyToken(request)) {
+  const payload = requireAuth(request);
+  if (!payload) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -10,21 +11,65 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { targetHp, pesanCustom } = body;
 
-    // CATATAN: token diambil dari env var FONNTE_TOKEN. Skema database
-    // punya tabel pengaturan_sekolah dengan kolom token_fonnte yang tidak
-    // dipakai di sini -- belum jelas apakah ini sumber yang dimaksud atau
-    // memang sengaja terpisah. Perlu dikonfirmasi.
+    // Input validation
+    if (!targetHp || typeof targetHp !== "string") {
+      return NextResponse.json(
+        { error: "targetHp wajib diisi dan harus string" },
+        { status: 400 }
+      );
+    }
+
+    if (!pesanCustom || typeof pesanCustom !== "string") {
+      return NextResponse.json(
+        { error: "pesanCustom wajib diisi dan harus string" },
+        { status: 400 }
+      );
+    }
+
+    // Validate phone format (basic: only digits and +, max 20 chars)
+    if (!/^[\d+\-\s()]+$/.test(targetHp) || targetHp.length > 20) {
+      return NextResponse.json(
+        { error: "Format nomor HP tidak valid" },
+        { status: 400 }
+      );
+    }
+
+    // Validate message length
+    if (pesanCustom.length > 5000) {
+      return NextResponse.json(
+        { error: "Pesan terlalu panjang (max 5000 karakter)" },
+        { status: 400 }
+      );
+    }
+
     const TOKEN_FONNTE = process.env.FONNTE_TOKEN || "";
 
+    if (!TOKEN_FONNTE) {
+      console.error(
+        "[WA] FONNTE_TOKEN belum di-set di environment variables"
+      );
+      return NextResponse.json(
+        { error: "Konfigurasi server bermasalah" },
+        { status: 500 }
+      );
+    }
+
     const formData = new FormData();
-    formData.append("target", String(targetHp));
+    formData.append("target", targetHp.trim());
     formData.append("message", pesanCustom);
+
+    // Add timeout untuk prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch("https://api.fonnte.com/send", {
       method: "POST",
       headers: { Authorization: TOKEN_FONNTE },
       body: formData,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     const result = await response.json();
     if (result.status === true) {
@@ -32,13 +77,14 @@ export async function POST(request: Request) {
     } else {
       return NextResponse.json(
         { success: false, pesan: result.reason || "Ditolak Fonnte" },
-        { status: 400 },
+        { status: 400 }
       );
     }
-  } catch (error) {
+  } catch (error: any) {
+    console.error("[WA] Error:", error);
     return NextResponse.json(
-      { success: false, pesan: "Server Error" },
-      { status: 500 },
+      { success: false, pesan: "Gagal mengirim pesan" },
+      { status: 500 }
     );
   }
 }
