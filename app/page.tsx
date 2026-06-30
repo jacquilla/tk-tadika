@@ -112,6 +112,7 @@ const getWeekRange = (offset: number = 0) => {
 export default function AppTK() {
   const [tampilan, setTampilan] = useState("login");
   const [namaGuru, setNamaGuru] = useState("");
+  const [guruHadir, setGuruHadir] = useState(false);
   const [pinLogin, setPinLogin] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isCheckingPin, setIsCheckingPin] = useState(false);
@@ -333,6 +334,23 @@ export default function AppTK() {
     };
   }, []);
 
+  useEffect(() => {
+    const cekKehadiranGuru = async () => {
+      const storedGuruId = localStorage.getItem("tk-guru-id");
+      if (storedGuruId && tampilan === "dashboard") {
+        const today = new Date().toISOString().split("T")[0];
+        const { data } = await supabase
+          .from("kehadiran_guru")
+          .select("id")
+          .eq("guru_id", storedGuruId)
+          .eq("tanggal", today)
+          .maybeSingle();
+        if (data) setGuruHadir(true);
+      }
+    };
+    cekKehadiranGuru();
+  }, [tampilan]);
+
   // ---------- DERIVED DATA ----------
   const muridSemua = dataSemuaMurid.filter(
     (m) => m.kelas.toLowerCase() === kelasAktif.toLowerCase(),
@@ -367,7 +385,7 @@ export default function AppTK() {
     try {
       const { data, error } = await supabase
         .from("guru")
-        .select("nama")
+        .select("id, nama")
         .eq("pin_login", pinLogin.trim())
         .maybeSingle();
       if (error) throw error;
@@ -378,15 +396,32 @@ export default function AppTK() {
       }
       setNamaGuru(data.nama);
 
-      // Simpan token JWT
-      const res = await fetch("/api/auth", {
+      // Simpan token JWT DULU
+      const authRes = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin: pinLogin.trim(), role: "guru" }),
       });
-      const authData = await res.json();
+      const authData = await authRes.json();
       if (authData.token) {
         localStorage.setItem("tk-token", authData.token);
+      }
+
+      // Simpan ID guru di localStorage agar bisa dicek nanti
+      localStorage.setItem("tk-guru-id", data.id);
+
+      // Baru catat kehadiran (sekarang getAuthHeaders() sudah berisi token)
+      try {
+        const res = await fetch("/api/kehadiran-guru", {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ guru_id: data.id }),
+        });
+        if (res.ok) {
+          setGuruHadir(true);
+        }
+      } catch (e) {
+        console.error("Gagal mencatat kehadiran guru:", e);
       }
 
       setTampilan("kelas");
@@ -999,6 +1034,7 @@ export default function AppTK() {
             <div className="flex flex-col h-full relative fade-in">
               <DashboardHeader
                 kelasAktif={kelasAktif}
+                guruHadir={guruHadir}
                 muridHadir={muridHadir.length}
                 onKembali={() => {
                   getaranHalus();

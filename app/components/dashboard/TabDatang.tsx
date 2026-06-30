@@ -49,7 +49,7 @@ export default function TabDatang({
             style={{ animationDelay: `${i * 0.04}s` }}
           >
             {/* Bagian Atas: Foto Profil menggunakan renderFoto Anda */}
-            <div className="relative w-full aspect-[4/5] bg-slate-50">
+            <div className="relative w-full aspect-4/5 bg-slate-50 [&>img]:w-full [&>img]:h-full [&>img]:object-cover">
               {/* Tombol Chat Melayang */}
               <button
                 onClick={(e) => {
@@ -65,7 +65,7 @@ export default function TabDatang({
               {/* RENDER FOTO ANDA TIDAK DIUBAH */}
               {renderFoto(
                 anak,
-                "w-full h-full object-cover transition-transform duration-500 group-hover:scale-105",
+                "relative w-full aspect-4/5 bg-slate-50 [&>img]:w-full [&>img]:h-full [&>img]:object-cover transition-transform duration-500 group-hover:scale-105",
               )}
 
               <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,0,0,0.03)] pointer-events-none"></div>

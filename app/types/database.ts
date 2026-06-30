@@ -5,6 +5,14 @@ export interface Guru {
   created_at: string;
 }
 
+export interface KehadiranGuru {
+  id: string;
+  guru_id: string;
+  tanggal: string;
+  waktu_datang: string;
+  created_at: string;
+}
+
 export interface Murid {
   id: string;
   nama: string;
