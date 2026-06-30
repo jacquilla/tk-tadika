@@ -3,8 +3,10 @@ import {
   ArrowLeft,
   ArrowRight,
   Loading,
-  ArrowRight as ArrowRightIcon,
+  Down,
   Edit,
+  Time,
+  Calendar,
 } from "@icon-park/react";
 import type {
   Murid,
@@ -77,88 +79,136 @@ export default function TabLaporan({
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Fungsi internal untuk getaran halus (Haptic Feedback)
+  const getaranHalus = () => {
+    if (typeof window !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+  };
+
+  // Handler Ganti Tab (Reset state akordion agar lebih rapi)
+  const handleTabSwitch = (tab: "harian" | "mingguan") => {
+    getaranHalus();
+    setExpandedId(null);
+    onSubTabChange(tab);
+  };
+
   return (
-    <div className="space-y-6">
-      <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-2">
-        Laporan
-      </h2>
-      <div className="flex gap-2 bg-slate-100/80 p-1 rounded-2xl mb-4">
+    <div className="space-y-6 fade-in relative">
+      {/* Background Decor */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-100/40 rounded-full blur-3xl -translate-y-10 translate-x-10 pointer-events-none -z-10"></div>
+
+      <div className="px-1">
+        <h2 className="font-extrabold text-slate-800 text-xl tracking-tight mb-1">
+          Laporan Akademik
+        </h2>
+        <p className="text-[10px] text-slate-400 font-extrabold tracking-widest uppercase mb-4">
+          Evaluasi & Jurnal
+        </p>
+      </div>
+
+      {/* Toggle Sub-Tab Mewah (Pill Style) */}
+      <div className="flex gap-1.5 bg-slate-200/50 backdrop-blur-md p-1.5 rounded-[1.25rem] shadow-inner mb-6 mx-1">
         <button
-          onClick={() => onSubTabChange("harian")}
-          className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${
+          onClick={() => handleTabSwitch("harian")}
+          className={`flex-1 py-3 rounded-xl text-xs font-extrabold transition-all duration-300 ${
             subTabLaporan === "harian"
-              ? "bg-white text-indigo-600 shadow-sm"
-              : "text-slate-500"
+              ? "bg-white text-indigo-600 shadow-[0_4px_15px_rgba(0,0,0,0.05)] scale-100"
+              : "text-slate-400 hover:text-slate-500 scale-[0.98]"
           }`}
         >
           Harian
         </button>
         <button
-          onClick={() => onSubTabChange("mingguan")}
-          className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${
+          onClick={() => handleTabSwitch("mingguan")}
+          className={`flex-1 py-3 rounded-xl text-xs font-extrabold transition-all duration-300 ${
             subTabLaporan === "mingguan"
-              ? "bg-white text-indigo-600 shadow-sm"
-              : "text-slate-500"
+              ? "bg-white text-indigo-600 shadow-[0_4px_15px_rgba(0,0,0,0.05)] scale-100"
+              : "text-slate-400 hover:text-slate-500 scale-[0.98]"
           }`}
         >
           Mingguan
         </button>
       </div>
 
-      {/* ========== HARIAN ========== */}
+      {/* ======================================= */}
+      {/* ========== HARIAN SECTION ============= */}
+      {/* ======================================= */}
       {subTabLaporan === "harian" && (
-        <>
-          <p className="text-xs font-bold text-slate-500">
-            Klik anak untuk melihat laporan hari ini
-          </p>
-          <div className="space-y-3">
-            {muridSemuaFilter.map((anak) => {
-              const isExpanded = expandedId === anak.id;
-              return (
-                <div
-                  key={anak.id}
-                  className="bg-white/80 backdrop-blur rounded-2xl shadow-sm border border-white/60 overflow-hidden transition-all"
+        <div className="space-y-3 slide-up">
+          {muridSemuaFilter.map((anak, i) => {
+            const isExpanded = expandedId === anak.id;
+            return (
+              <div
+                key={anak.id}
+                className={`bg-white/90 backdrop-blur-xl rounded-[2rem] border transition-all duration-300 overflow-hidden ${
+                  isExpanded
+                    ? "border-indigo-100 shadow-[0_15px_40px_rgba(99,102,241,0.08)] mb-4"
+                    : "border-white shadow-sm hover:shadow-md"
+                }`}
+                style={{ animationDelay: `${i * 0.05}s` }}
+              >
+                {/* Header Tombol */}
+                <button
+                  onClick={() => {
+                    getaranHalus();
+                    setExpandedId(isExpanded ? null : anak.id);
+                    onSelectStudent(anak);
+                  }}
+                  className="w-full p-4 flex items-center justify-between active:scale-[0.98] transition-all group"
                 >
-                  {/* Tombol utama */}
-                  <button
-                    onClick={() => {
-                      setExpandedId(isExpanded ? null : anak.id);
-                      onSelectStudent(anak);
-                    }}
-                    className="w-full p-4 flex items-center justify-between active:scale-[0.98] transition-all"
-                  >
-                    <div className="flex items-center gap-4">
-                      {renderFoto(
-                        anak,
-                        "w-12 h-12 rounded-xl object-cover border border-slate-100",
-                      )}
-                      <span className="font-bold text-slate-800 text-sm">
+                  <div className="flex items-center gap-4">
+                    {renderFoto(
+                      anak,
+                      "w-12 h-12 rounded-2xl object-cover border-2 border-slate-50 shadow-sm transition-transform group-hover:scale-105",
+                    )}
+                    <div className="text-left">
+                      <span className="font-extrabold text-slate-800 text-sm block">
                         {anak.nama}
                       </span>
-                    </div>
-                    <ArrowRightIcon
-                      theme="outline"
-                      size={20}
-                      className={`text-slate-400 transition-transform ${isExpanded ? "rotate-90" : ""}`}
-                    />
-                  </button>
-
-                  {/* Detail laporan harian (muncul di bawah nama) */}
-                  {isExpanded && (
-                    <div className="px-4 pb-4 slide-up">
-                      <div className="p-4 bg-slate-50/80 rounded-2xl space-y-2 text-xs text-slate-700">
-                        <p>
-                          <span className="font-bold">Status:</span>{" "}
-                          {statusAnak[anak.id] === "hadir"
-                            ? "Hadir"
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${
+                          statusAnak[anak.id] === "hadir"
+                            ? "text-emerald-500"
                             : statusAnak[anak.id] === "pulang"
-                              ? "Sudah Pulang"
-                              : "Belum Hadir"}
-                        </p>
-                        {kehadiranHarian[anak.id] && (
-                          <>
-                            <p>
-                              <span className="font-bold">Datang:</span>{" "}
+                              ? "text-slate-400"
+                              : "text-rose-400"
+                        }`}
+                      >
+                        {statusAnak[anak.id] === "hadir"
+                          ? "• Sedang di Kelas"
+                          : statusAnak[anak.id] === "pulang"
+                            ? "• Sudah Pulang"
+                            : "• Belum Hadir"}
+                      </span>
+                    </div>
+                  </div>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                      isExpanded
+                        ? "bg-indigo-50 text-indigo-500 rotate-180"
+                        : "bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-400"
+                    }`}
+                  >
+                    <Down theme="outline" size={16} strokeWidth={4} />
+                  </div>
+                </button>
+
+                {/* Konten Expand Harian */}
+                {isExpanded && (
+                  <div className="px-5 pb-6 pt-1 slide-up">
+                    <div className="border-t border-slate-100/80 pt-4">
+                      {/* Grid Waktu Datang & Pulang */}
+                      <div className="grid grid-cols-2 gap-3 mb-5">
+                        <div className="bg-emerald-50/50 border border-emerald-100/50 rounded-2xl p-3.5 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-500 shrink-0">
+                            <Time theme="outline" size={16} strokeWidth={4} />
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-emerald-600 font-extrabold uppercase tracking-widest">
+                              Tiba
+                            </p>
+                            <p className="text-sm font-bold text-slate-700">
                               {kehadiranHarian[anak.id]?.waktu_datang
                                 ? new Date(
                                     kehadiranHarian[anak.id]!
@@ -167,10 +217,19 @@ export default function TabLaporan({
                                     hour: "2-digit",
                                     minute: "2-digit",
                                   })
-                                : "-"}{" "}
+                                : "--:--"}
                             </p>
-                            <p>
-                              <span className="font-bold">Pulang:</span>{" "}
+                          </div>
+                        </div>
+                        <div className="bg-orange-50/50 border border-orange-100/50 rounded-2xl p-3.5 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center text-orange-500 shrink-0">
+                            <Time theme="outline" size={16} strokeWidth={4} />
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-orange-600 font-extrabold uppercase tracking-widest">
+                              Pulang
+                            </p>
+                            <p className="text-sm font-bold text-slate-700">
                               {kehadiranHarian[anak.id]?.waktu_pulang
                                 ? new Date(
                                     kehadiranHarian[anak.id]!
@@ -179,47 +238,95 @@ export default function TabLaporan({
                                     hour: "2-digit",
                                     minute: "2-digit",
                                   })
-                                : "-"}{" "}
+                                : "--:--"}
                             </p>
-                          </>
-                        )}
-                        {logHarian[anak.id] && (
-                          <div>
-                            <span className="font-bold">Aktivitas:</span>
-                            <ul className="list-disc pl-5 mt-1 space-y-1">
-                              {logHarian[anak.id].map(
-                                (log: LogAktivitas, idx: number) => (
-                                  <li
-                                    key={log.id || idx}
-                                    className="flex items-start justify-between gap-2"
-                                  >
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Daily Sheet Chips */}
+                      {statusDailySheetHarian[anak.id] && (
+                        <div className="mb-5">
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2">
+                            Kondisi Anak
+                          </p>
+                          <div className="flex gap-2 flex-wrap">
+                            {statusDailySheetHarian[anak.id].makan && (
+                              <span className="bg-amber-50 border border-amber-100 text-amber-600 px-3 py-1.5 rounded-xl text-[10px] font-bold shadow-sm">
+                                🍱 {statusDailySheetHarian[anak.id].makan}
+                              </span>
+                            )}
+                            {statusDailySheetHarian[anak.id].tidur && (
+                              <span className="bg-violet-50 border border-violet-100 text-violet-600 px-3 py-1.5 rounded-xl text-[10px] font-bold shadow-sm">
+                                💤 {statusDailySheetHarian[anak.id].tidur}
+                              </span>
+                            )}
+                            {statusDailySheetHarian[anak.id].mood && (
+                              <span className="bg-rose-50 border border-rose-100 text-rose-600 px-3 py-1.5 rounded-xl text-[10px] font-bold shadow-sm">
+                                {statusDailySheetHarian[anak.id].mood ===
+                                "Senang"
+                                  ? "😊"
+                                  : statusDailySheetHarian[anak.id].mood ===
+                                      "Biasa"
+                                    ? "😐"
+                                    : "😭"}{" "}
+                                {statusDailySheetHarian[anak.id].mood}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Timeline Aktivitas */}
+                      {logHarian[anak.id] && logHarian[anak.id].length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">
+                            Jurnal Aktivitas
+                          </p>
+                          <div className="border-l-2 border-indigo-50 ml-3 pl-5 space-y-4 relative">
+                            {logHarian[anak.id].map(
+                              (log: LogAktivitas, idx: number) => (
+                                <div key={log.id || idx} className="relative">
+                                  {/* Timeline Dot */}
+                                  <div className="absolute -left-[27px] top-1 w-3 h-3 bg-white border-2 border-indigo-400 rounded-full"></div>
+
+                                  <div className="flex items-start justify-between gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100/80">
                                     <div className="flex-1">
-                                      <span className="text-slate-600">
-                                        [
+                                      <span className="text-[10px] font-extrabold text-indigo-500 mb-1 block">
                                         {new Date(
                                           log.created_at,
                                         ).toLocaleTimeString("id-ID", {
                                           hour: "2-digit",
                                           minute: "2-digit",
                                         })}
-                                        ] {log.deskripsi}
                                       </span>
+                                      <p className="text-xs font-semibold text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                        {log.deskripsi}
+                                      </p>
+
+                                      {/* Thumbnail Foto Premium */}
                                       {typeof log.metadata?.foto_url ===
                                         "string" && (
-                                        <img
-                                          src={log.metadata.foto_url}
-                                          alt="foto"
-                                          className="mt-1 rounded-lg max-h-20 object-cover"
-                                        />
+                                        <div className="mt-2 w-full max-w-[140px] aspect-square relative rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                                          <img
+                                            src={log.metadata.foto_url}
+                                            alt="foto aktivitas"
+                                            className="object-cover w-full h-full"
+                                          />
+                                        </div>
                                       )}
                                     </div>
+
+                                    {/* Tombol Edit */}
                                     {statusAnak[anak.id] !== "pulang" && (
                                       <button
                                         onClick={(e) => {
-                                          e.stopPropagation(); // jangan expand/colapse
+                                          e.stopPropagation();
+                                          getaranHalus();
                                           onEditLog?.(log);
                                         }}
-                                        className="p-1 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors active:scale-90 shrink-0"
+                                        className="p-2 text-slate-400 bg-white shadow-sm border border-slate-100 hover:text-indigo-500 hover:bg-indigo-50 rounded-xl transition-all active:scale-90 shrink-0"
+                                        title="Edit Aktivitas"
                                       >
                                         <Edit
                                           theme="outline"
@@ -228,33 +335,196 @@ export default function TabLaporan({
                                         />
                                       </button>
                                     )}
-                                  </li>
-                                ),
-                              )}
-                            </ul>
+                                  </div>
+                                </div>
+                              ),
+                            )}
                           </div>
-                        )}
-                        {statusDailySheetHarian[anak.id] && (
-                          <div>
-                            <span className="font-bold">Daily Sheet:</span>
-                            <div className="flex gap-2 mt-1 flex-wrap">
-                              {statusDailySheetHarian[anak.id].makan && (
-                                <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-lg text-[10px] font-bold">
-                                  🍱 {statusDailySheetHarian[anak.id].makan}
-                                </span>
-                              )}
-                              {statusDailySheetHarian[anak.id].tidur && (
-                                <span className="bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-[10px] font-bold">
-                                  💤 {statusDailySheetHarian[anak.id].tidur}
-                                </span>
-                              )}
-                              {statusDailySheetHarian[anak.id].mood && (
-                                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-lg text-[10px] font-bold">
-                                  😊 {statusDailySheetHarian[anak.id].mood}
-                                </span>
-                              )}
-                            </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ======================================= */}
+      {/* ========= MINGGUAN SECTION ============ */}
+      {/* ======================================= */}
+      {subTabLaporan === "mingguan" && (
+        <div className="slide-up">
+          {/* Floating Date Picker */}
+          <div className="bg-white/90 backdrop-blur-xl border border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.06)] p-2 rounded-2xl flex items-center justify-between mb-6">
+            <button
+              onClick={() => {
+                getaranHalus();
+                onWeeklyOffsetChange(weeklyOffset - 1);
+              }}
+              className="p-3.5 bg-slate-50 hover:bg-indigo-50 text-slate-500 hover:text-indigo-500 rounded-xl active:scale-95 transition-all"
+            >
+              <ArrowLeft theme="outline" size={18} strokeWidth={4} />
+            </button>
+            <div className="flex items-center gap-2">
+              <Calendar theme="outline" size={16} className="text-indigo-400" />
+              <span className="font-extrabold text-xs text-slate-700">
+                {getWeekRange(weeklyOffset).mondayDate.toLocaleDateString(
+                  "id-ID",
+                  {
+                    day: "numeric",
+                    month: "short",
+                  },
+                )}{" "}
+                -{" "}
+                {getWeekRange(weeklyOffset).sundayDate.toLocaleDateString(
+                  "id-ID",
+                  {
+                    day: "numeric",
+                    month: "short",
+                  },
+                )}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                getaranHalus();
+                onWeeklyOffsetChange(weeklyOffset + 1);
+              }}
+              className="p-3.5 bg-slate-50 hover:bg-indigo-50 text-slate-500 hover:text-indigo-500 rounded-xl active:scale-95 transition-all"
+            >
+              <ArrowRight theme="outline" size={18} strokeWidth={4} />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {muridSemuaFilter.map((anak) => {
+              const isExpanded = expandedId === anak.id;
+              return (
+                <div
+                  key={anak.id}
+                  className={`bg-white/90 backdrop-blur-xl rounded-[2rem] border transition-all duration-300 overflow-hidden ${
+                    isExpanded
+                      ? "border-indigo-100 shadow-[0_15px_40px_rgba(99,102,241,0.08)] mb-4"
+                      : "border-white shadow-sm hover:shadow-md"
+                  }`}
+                >
+                  {/* Header Tombol (Sama kerennya dengan Harian) */}
+                  <button
+                    onClick={() => {
+                      getaranHalus();
+                      setExpandedId(isExpanded ? null : anak.id);
+                      if (!isExpanded) {
+                        fetchWeeklyReportForChild(anak);
+                      }
+                    }}
+                    className="w-full p-4 flex items-center justify-between active:scale-[0.98] transition-all group"
+                  >
+                    <div className="flex items-center gap-4">
+                      {renderFoto(
+                        anak,
+                        "w-12 h-12 rounded-2xl object-cover border-2 border-slate-50 shadow-sm transition-transform group-hover:scale-105",
+                      )}
+                      <span className="font-extrabold text-slate-800 text-sm">
+                        {anak.nama}
+                      </span>
+                    </div>
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                        isExpanded
+                          ? "bg-indigo-50 text-indigo-500 rotate-180"
+                          : "bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-400"
+                      }`}
+                    >
+                      <Down theme="outline" size={16} strokeWidth={4} />
+                    </div>
+                  </button>
+
+                  {/* Konten Expand Mingguan */}
+                  {isExpanded && (
+                    <div className="px-4 pb-5 slide-up">
+                      <div className="border-t border-slate-100/80 pt-4">
+                        {isLoadingWeekly ? (
+                          <div className="flex flex-col items-center justify-center py-6 gap-3">
+                            <Loading
+                              className="animate-spin text-indigo-400"
+                              size={28}
+                              strokeWidth={4}
+                            />
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                              Menarik Data...
+                            </span>
                           </div>
+                        ) : weeklyData && weeklyData.anak.id === anak.id ? (
+                          <div className="space-y-3">
+                            {Object.entries(weeklyData.dailyMap).map(
+                              ([date, data]: [string, any]) => {
+                                const hari = new Date(date).toLocaleDateString(
+                                  "id-ID",
+                                  {
+                                    weekday: "long",
+                                    day: "numeric",
+                                    month: "short",
+                                  },
+                                );
+                                return (
+                                  <div
+                                    key={date}
+                                    className="p-4 bg-slate-50/70 border border-slate-100 rounded-2xl"
+                                  >
+                                    <div className="flex justify-between items-center mb-3">
+                                      <span className="font-extrabold text-slate-700 text-xs">
+                                        {hari}
+                                      </span>
+                                      <span
+                                        className={`text-[9px] font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-widest shadow-sm ${
+                                          data.hadir
+                                            ? data.hadir.status_hadir ===
+                                                "hadir" ||
+                                              data.hadir.status_hadir ===
+                                                "pulang"
+                                              ? "bg-emerald-100 text-emerald-600 border border-emerald-200"
+                                              : "bg-rose-100 text-rose-600 border border-rose-200"
+                                            : "bg-slate-200 text-slate-500 border border-slate-300"
+                                        }`}
+                                      >
+                                        {data.hadir
+                                          ? data.hadir.status_hadir === "pulang"
+                                            ? "Hadir"
+                                            : data.hadir.status_hadir
+                                          : "Kosong"}
+                                      </span>
+                                    </div>
+
+                                    {/* Rekap Kegiatan Mingguan */}
+                                    {data.kegiatan.length > 0 ? (
+                                      <ul className="text-[11px] font-semibold text-slate-600 space-y-1.5 ml-1 border-l-2 border-indigo-100 pl-3">
+                                        {data.kegiatan.map(
+                                          (k: any, i: number) => (
+                                            <li
+                                              key={i}
+                                              className="line-clamp-2"
+                                            >
+                                              {k.deskripsi}
+                                            </li>
+                                          ),
+                                        )}
+                                      </ul>
+                                    ) : (
+                                      <p className="text-[10px] font-semibold text-slate-400 italic">
+                                        Tidak ada catatan aktivitas.
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              },
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-center text-xs text-slate-400 py-4 font-semibold">
+                            Gagal memuat atau tidak ada data.
+                          </p>
                         )}
                       </div>
                     </div>
@@ -263,123 +533,7 @@ export default function TabLaporan({
               );
             })}
           </div>
-        </>
-      )}
-
-      {/* ========== MINGGUAN ========== */}
-      {subTabLaporan === "mingguan" && (
-        <>
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => onWeeklyOffsetChange(weeklyOffset - 1)}
-              className="p-3 bg-white/80 border border-slate-200 rounded-xl active:scale-95"
-            >
-              <ArrowLeft theme="outline" size={20} className="text-slate-600" />
-            </button>
-            <span className="font-bold text-xs bg-indigo-50 px-4 py-2 rounded-xl text-indigo-600">
-              {getWeekRange(weeklyOffset).mondayDate.toLocaleDateString(
-                "id-ID",
-                { day: "numeric", month: "short" },
-              )}{" "}
-              -{" "}
-              {getWeekRange(weeklyOffset).sundayDate.toLocaleDateString(
-                "id-ID",
-                { day: "numeric", month: "short" },
-              )}
-            </span>
-            <button
-              onClick={() => onWeeklyOffsetChange(weeklyOffset + 1)}
-              className="p-3 bg-white/80 border border-slate-200 rounded-xl active:scale-95"
-            >
-              <ArrowRight
-                theme="outline"
-                size={20}
-                className="text-slate-600"
-              />
-            </button>
-          </div>
-          <p className="text-xs font-bold text-slate-500 mb-2">
-            Klik anak untuk melihat laporan mingguan
-          </p>
-          <div className="space-y-3">
-            {muridSemuaFilter.map((anak) => (
-              <button
-                key={anak.id}
-                onClick={() => fetchWeeklyReportForChild(anak)}
-                className="w-full bg-white/80 backdrop-blur p-4 rounded-2xl shadow-sm border border-white/60 flex items-center justify-between active:scale-[0.98] transition-all"
-              >
-                <div className="flex items-center gap-4">
-                  {renderFoto(
-                    anak,
-                    "w-12 h-12 rounded-xl object-cover border border-slate-100",
-                  )}
-                  <span className="font-bold text-slate-800 text-sm">
-                    {anak.nama}
-                  </span>
-                </div>
-                <ArrowRightIcon
-                  theme="outline"
-                  size={20}
-                  className="text-slate-400"
-                />
-              </button>
-            ))}
-          </div>
-          {isLoadingWeekly && (
-            <div className="flex justify-center py-8">
-              <Loading className="animate-spin text-indigo-500" size={32} />
-            </div>
-          )}
-          {weeklyData && !isLoadingWeekly && (
-            <div className="mt-4 p-5 bg-white/90 backdrop-blur rounded-[2rem] shadow-md border border-white/60 slide-up">
-              <h3 className="font-extrabold text-indigo-700 text-base mb-4">
-                Laporan Mingguan: {weeklyData.anak.nama}
-              </h3>
-              <div className="space-y-4">
-                {Object.entries(weeklyData.dailyMap).map(
-                  ([date, data]: [string, any]) => {
-                    const hari = new Date(date).toLocaleDateString("id-ID", {
-                      weekday: "short",
-                      day: "numeric",
-                    });
-                    return (
-                      <div key={date} className="p-3 bg-slate-50/80 rounded-xl">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-extrabold text-slate-700 text-xs">
-                            {hari}
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
-                              data.hadir
-                                ? data.hadir.status_hadir === "hadir" ||
-                                  data.hadir.status_hadir === "pulang"
-                                  ? "bg-emerald-100 text-emerald-700"
-                                  : "bg-rose-100 text-rose-700"
-                                : "bg-slate-200 text-slate-600"
-                            }`}
-                          >
-                            {data.hadir
-                              ? data.hadir.status_hadir === "pulang"
-                                ? "Pulang"
-                                : data.hadir.status_hadir
-                              : "Tanpa Data"}
-                          </span>
-                        </div>
-                        {data.kegiatan.length > 0 && (
-                          <ul className="text-[10px] text-slate-600 list-disc pl-4">
-                            {data.kegiatan.map((k: any, i: number) => (
-                              <li key={i}>{k.deskripsi}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    );
-                  },
-                )}
-              </div>
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   );

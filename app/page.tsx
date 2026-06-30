@@ -526,20 +526,10 @@ export default function AppTK() {
   };
 
   const handlePilihLabel = (label: string) => {
+    // Sekarang pengelolaan label sepenuhnya dilakukan di TabKegiatan
+    // Kita hanya perlu menyimpan label yang aktif (opsional)
     setLabelAktivitas(label);
-    const templates: Record<string, string> = {
-      agamaMoral: "🙏 Belajar agama & moral melalui: ",
-      motorik: "🏃 Melatih motorik melalui: ",
-      kognitif: "🧠 Mengasah kognitif dengan: ",
-      sosialEmosional: "💬 Belajar sosial-emosional lewat: ",
-      bahasa: "🗣️ Mengembangkan bahasa dengan: ",
-      seni: "🎨 Berkreasi seni melalui: ",
-      semua:
-        "🌟 Mengembangkan semua aspek (Agama & Moral, Motorik, Kognitif, Sosial - Emosional, Bahasa, Seni) melalui: ",
-    };
-    if (label && templates[label]) {
-      setJenisKegiatan(templates[label]);
-    }
+    // Tidak mengisi jenisKegiatan lagi
   };
 
   const simpanKegiatanMassal = async () => {
