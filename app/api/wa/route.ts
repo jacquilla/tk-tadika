@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyToken } from "../../lib/verify-token";
+import { verifyToken } from "@/app/lib/verify-token";
 
 export async function POST(request: Request) {
   if (!verifyToken(request)) {
@@ -9,6 +9,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { targetHp, pesanCustom } = body;
+
+    // CATATAN: token diambil dari env var FONNTE_TOKEN. Skema database
+    // punya tabel pengaturan_sekolah dengan kolom token_fonnte yang tidak
+    // dipakai di sini -- belum jelas apakah ini sumber yang dimaksud atau
+    // memang sengaja terpisah. Perlu dikonfirmasi.
     const TOKEN_FONNTE = process.env.FONNTE_TOKEN || "";
 
     const formData = new FormData();

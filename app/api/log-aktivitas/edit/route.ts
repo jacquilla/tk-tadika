@@ -4,15 +4,14 @@ import { verifyToken } from "@/app/lib/verify-token";
 
 export async function PUT(request: Request) {
   // 1. Verifikasi token
-  if (!verifyToken(request)) {
+  const payload = verifyToken(request);
+  if (!payload) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const body = await request.json();
     const { id, deskripsi, metadata, waktuBaru, foto_url } = body;
-
-    console.log("Request body:", body);
 
     if (!id || !deskripsi) {
       return NextResponse.json(
@@ -35,6 +34,23 @@ export async function PUT(request: Request) {
         { status: 404 },
       );
     }
+
+    // 2b. CATATAN: pengecekan kepemilikan log (hanya penulis asli yang boleh
+    // edit) BELUM bisa diterapkan di sini karena tabel log_aktivitas belum
+    // punya kolom guru_id di skema saat ini. Saat ini SEMUA guru yang login
+    // bisa edit log aktivitas murid mana pun, selama masih hari yang sama
+    // dan anak belum berstatus pulang (lihat langkah 3 & 4 di bawah).
+    //
+    // Kalau nanti kolom guru_id ditambahkan ke log_aktivitas (dan endpoint
+    // insert log-aktivitas/route.ts diisi guru_id saat create), aktifkan
+    // blok ini:
+    //
+    // if (payload.role !== "admin" && existingLog.guru_id !== payload.guru_id) {
+    //   return NextResponse.json(
+    //     { error: "Anda tidak berhak mengedit log ini" },
+    //     { status: 403 },
+    //   );
+    // }
 
     // 3. Validasi hari ini (WITA)
     const now = new Date();
@@ -69,11 +85,20 @@ export async function PUT(request: Request) {
     }
 
     // 5. Update
+    // Catatan: tabel log_aktivitas tidak punya kolom foto_url terpisah.
+    // foto_url disimpan sebagai bagian dari metadata (jsonb). Digabung
+    // di atas metadata LAMA (existingLog.metadata), supaya field metadata
+    // lain yang sudah tersimpan tidak hilang kalau client cuma kirim
+    // foto_url tanpa metadata baru.
     const updatePayload: any = { deskripsi };
-    if (metadata) updatePayload.metadata = metadata;
+    if (metadata || foto_url) {
+      updatePayload.metadata = {
+        ...(existingLog.metadata || {}),
+        ...(metadata || {}),
+        ...(foto_url ? { foto_url } : {}),
+      };
+    }
     if (waktuBaru) updatePayload.created_at = waktuBaru;
-
-    console.log("Updating log ID:", id, "Payload:", updatePayload);
 
     const { error: updateError } = await supabase
       .from("log_aktivitas")
@@ -84,8 +109,6 @@ export async function PUT(request: Request) {
       console.error("Update error:", updateError);
       throw updateError;
     }
-
-    console.log("Update success");
 
     return NextResponse.json({
       success: true,

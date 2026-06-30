@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyToken } from "../../lib/verify-token";
+import { verifyToken } from "@/app/lib/verify-token";
 import { google } from "googleapis";
 import sharp from "sharp";
 
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_DRIVE_CLIENT_ID,
       process.env.GOOGLE_DRIVE_CLIENT_SECRET,
-      "http://localhost", // redirect URI tidak penting untuk refresh token
+      "http://localhost",
     );
     oauth2Client.setCredentials({
       refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN,
@@ -53,6 +53,9 @@ export async function POST(request: Request) {
     const fileId = createdFile.data.id!;
 
     // 3. Set file menjadi publik
+    // CATATAN KEAMANAN: ini membuat setiap foto yang diupload bisa diakses
+    // siapa pun yang punya link, tanpa login. Karena ini foto anak-anak,
+    // pertimbangkan apakah ini risiko yang diterima sadar atau bukan.
     await drive.permissions.create({
       fileId: fileId,
       requestBody: { role: "reader", type: "anyone" },

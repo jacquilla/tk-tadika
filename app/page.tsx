@@ -501,28 +501,32 @@ export default function AppTK() {
   const handleDatang = async (anak: Murid) => {
     getaranHalus();
     const today = getTanggalLokal();
-    const nowObj = new Date();
-    const nowStr = nowObj.toISOString();
-    const timeDatang = nowObj.toLocaleTimeString("id-ID", {
+    const nowStr = new Date().toISOString();
+    const timeDatang = new Date().toLocaleTimeString("id-ID", {
       hour: "2-digit",
       minute: "2-digit",
     });
+
     try {
+      // Cek apakah sudah ada record kehadiran hari ini (SELECT masih aman)
       const { data: existing, error } = await supabase
         .from("kehadiran")
         .select("id")
         .eq("murid_id", anak.id)
         .eq("tanggal", today)
         .maybeSingle();
+
       if (error) throw error;
+
       if (existing) {
-        // Cegah penimpaan jika anak sudah tercatat hadir
+        // Jangan timpa jika sudah hadir
         const statusSekarang = statusAnak[anak.id];
         if (statusSekarang === "hadir") {
           alert("Anak ini sudah tercatat hadir. Tidak bisa diubah.");
           return;
         }
 
+        // Kirim PUT ke API (aman, pakai service key + JWT)
         await fetch("/api/kehadiran", {
           method: "PUT",
           headers: getAuthHeaders(),
@@ -533,6 +537,7 @@ export default function AppTK() {
           }),
         });
       } else {
+        // Belum ada record → POST ke API
         await fetch("/api/kehadiran", {
           method: "POST",
           headers: getAuthHeaders(),
@@ -544,12 +549,18 @@ export default function AppTK() {
           }),
         });
       }
+
+      // Update state lokal
       setStatusAnak((prev) => ({ ...prev, [anak.id]: "hadir" }));
+
+      // Catat log aktivitas (sudah pakai API)
       catatKegiatan(
         anak.id,
         "Tiba di sekolah dengan ceria (Check-In)",
         "Kehadiran",
       );
+
+      // Kirim WA
       const pesanDatang =
         `🌸 Halo Bunda/Ayah! 🌸\n\n` +
         `Kabar gembira! Ananda *${anak.nama}* sudah sampai di sekolah dengan selamat pada pukul *${timeDatang}*.\n\n` +

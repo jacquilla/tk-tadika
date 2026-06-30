@@ -3,7 +3,7 @@ import { supabaseAdmin } from "../../lib/supabase-admin";
 import ExcelJS from "exceljs";
 
 // Token internal untuk mengamankan endpoint
-const API_SECRET = process.env.API_SECRET || "tk-tadika-mesra-secret";
+const API_SECRET = process.env.API_SECRET || "";
 
 export async function GET(request: Request) {
   // Validasi token

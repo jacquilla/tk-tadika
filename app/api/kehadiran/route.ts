@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../lib/supabase-admin";
-import { verifyToken } from "../../lib/verify-token";
+import { verifyToken } from "@/app/lib/verify-token";
 
 export async function POST(request: Request) {
   if (!verifyToken(request)) {

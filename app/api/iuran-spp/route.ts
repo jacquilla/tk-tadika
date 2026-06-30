@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../lib/supabase-admin";
-import { verifyToken } from "../../lib/verify-token";
+import { requireAdmin } from "@/app/lib/verify-token";
 
 export async function POST(request: Request) {
-  if (!verifyToken(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!requireAdmin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   try {
     const body = await request.json();
@@ -17,8 +17,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!verifyToken(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!requireAdmin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   try {
     const { murid_id, tahun, bulan } = await request.json();

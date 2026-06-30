@@ -3,14 +3,19 @@ import { supabaseAdmin } from "../../lib/supabase-admin";
 import { verifyToken } from "@/app/lib/verify-token";
 
 export async function POST(request: Request) {
-  // Verifikasi token JWT
-  if (!verifyToken(request)) {
+  const payload = verifyToken(request);
+  if (!payload) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const body = await request.json();
-    const { guru_id } = body;
+
+    // Guru cuma boleh catat kehadiran untuk dirinya sendiri (ambil dari
+    // token, bukan dari body, supaya guru A tidak bisa absen atas nama
+    // guru B). Admin boleh isi guru_id manual, misal saat guru lupa absen
+    // sendiri.
+    const guru_id = payload.role === "admin" ? body.guru_id : payload.guru_id;
 
     if (!guru_id) {
       return NextResponse.json(
