@@ -5,11 +5,16 @@ import { supabaseAdmin } from "../../lib/supabase-admin";
 const JWT_SECRET = process.env.JWT_SECRET;
 const ADMIN_PIN = process.env.ADMIN_PIN;
 
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET belum di-set di environment variables");
-}
-
 export async function POST(request: Request) {
+  // Pastikan JWT_SECRET sudah diset (dicek di dalam fungsi agar TypeScript paham)
+  if (!JWT_SECRET) {
+    console.error("JWT_SECRET belum di-set di environment variables");
+    return NextResponse.json(
+      { error: "Konfigurasi server bermasalah" },
+      { status: 500 },
+    );
+  }
+
   try {
     const { pin, role } = await request.json();
 
@@ -27,7 +32,6 @@ export async function POST(request: Request) {
     // --- Validasi ADMIN ---
     if (role === "admin") {
       if (!ADMIN_PIN) {
-        // Jangan biarkan ini diam-diam lolos kalau env var lupa di-set.
         console.error("ADMIN_PIN belum di-set di environment variables");
         return NextResponse.json(
           { error: "Konfigurasi server bermasalah" },
@@ -46,7 +50,6 @@ export async function POST(request: Request) {
     }
 
     // --- Validasi GURU ---
-    // Cocokkan PIN ke tabel guru di Supabase (kolom pin_login).
     const { data: guru, error } = await supabaseAdmin
       .from("guru")
       .select("id, nama, pin_login")
@@ -65,8 +68,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "PIN salah" }, { status: 401 });
     }
 
-    // guru_id dimasukkan ke token supaya endpoint lain bisa tahu
-    // siapa yang request, bukan cuma "valid token apa saja".
     const token = jwt.sign({ role: "guru", guru_id: guru.id }, JWT_SECRET, {
       expiresIn: "12h",
     });
