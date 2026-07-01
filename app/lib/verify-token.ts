@@ -5,6 +5,8 @@ const JWT_SECRET = process.env.JWT_SECRET;
 export type TokenPayload = {
   role: "admin" | "guru";
   guru_id?: string;
+  iat?: number;
+  exp?: number;
 };
 
 /**
@@ -30,15 +32,19 @@ export function verifyToken(request: Request): TokenPayload | null {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
-    
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      algorithms: ["HS256"], // Hanya accept HS256
+    }) as TokenPayload;
+
     // Validasi role
     if (decoded.role !== "admin" && decoded.role !== "guru") {
+      console.warn("[VERIFY_TOKEN] Invalid role:", decoded.role);
       return null;
     }
 
     // Validasi guru_id jika role adalah guru
     if (decoded.role === "guru" && !decoded.guru_id) {
+      console.warn("[VERIFY_TOKEN] Guru token tanpa guru_id");
       return null;
     }
 
@@ -46,14 +52,15 @@ export function verifyToken(request: Request): TokenPayload | null {
   } catch (error) {
     // Token invalid, expired, atau signature tidak match
     if (error instanceof jwt.JsonWebTokenError) {
-      // Token tidak valid (signature, format, dll)
+      console.warn("[VERIFY_TOKEN] Invalid token:", error.message);
       return null;
     }
     if (error instanceof jwt.TokenExpiredError) {
-      // Token sudah expired
+      console.warn("[VERIFY_TOKEN] Token expired at:", error.expiredAt);
       return null;
     }
     // Unknown error
+    console.error("[VERIFY_TOKEN] Unknown error:", error);
     return null;
   }
 }
@@ -73,7 +80,7 @@ export function requireAdmin(request: Request): TokenPayload | null {
 }
 
 /**
- * Helper untuk route yang boleh admin DAN guru tertentu (misal: guru hanya bisa akses data dirinya).
+ * Helper untuk route yang boleh admin DAN guru tertentu.
  * Digunakan untuk enforcing row-level authorization.
  *
  * Contoh:
@@ -86,4 +93,16 @@ export function requireAdmin(request: Request): TokenPayload | null {
  */
 export function requireAuth(request: Request): TokenPayload | null {
   return verifyToken(request);
+}
+
+/**
+ * Extract client IP dari request (untuk logging & rate limiting).
+ * Coba dari X-Forwarded-For (proxy), fallback ke socket address.
+ */
+export function getClientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  return "unknown";
 }
