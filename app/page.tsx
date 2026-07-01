@@ -71,7 +71,7 @@ const TEMPLATE_PESAN = {
 };
 
 // Session timeout: 1 jam (match JWT expiry dari auth/route.ts)
-const SESSION_TIMEOUT_MS = 60 * 60 * 1000;
+const SESSION_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
 const getTanggalLokal = () => {
   const d = new Date();
@@ -119,6 +119,7 @@ const getWeekRange = (offset: number = 0) => {
 const performLogout = (setTampilan: any, setNamaGuru: any) => {
   localStorage.removeItem("tk-token");
   localStorage.removeItem("tk-guru-id");
+  localStorage.removeItem("tk-nama-guru");
   setNamaGuru("");
   setTampilan("login");
 };
@@ -140,6 +141,7 @@ export default function AppTK() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   const [statusAnak, setStatusAnak] = useState<
     Record<string, "belum" | "hadir" | "pulang">
@@ -201,13 +203,23 @@ export default function AppTK() {
     end: string;
   } | null>(null);
   const [isLoadingWeekly, setIsLoadingWeekly] = useState(false);
+  useEffect(() => {
+    const token = localStorage.getItem("tk-token");
+    const guruId = localStorage.getItem("tk-guru-id");
+    const nama = localStorage.getItem("tk-nama-guru"); // Ambil nama dari storage
 
+    if (token && guruId) {
+      if (nama) setNamaGuru(nama); // Set nama jika ada di storage
+      setTampilan("kelas");
+    }
+    setIsCheckingSession(false);
+  }, []);
   // ---------- SESSION TIMEOUT HANDLER (1 hour = JWT expiry) ----------
   useEffect(() => {
     if (tampilan === "dashboard" || tampilan === "kelas") {
       const timer = setTimeout(() => {
         alert(
-          "Sesi Anda telah berakhir (token expired setelah 1 jam). Silakan login kembali.",
+          "Sesi Anda telah berakhir (token expired setelah 12 jam). Silakan login kembali.",
         );
         performLogout(setTampilan, setNamaGuru);
       }, SESSION_TIMEOUT_MS);
@@ -424,6 +436,8 @@ export default function AppTK() {
         return;
       }
       setNamaGuru(data.nama);
+      setNamaGuru(data.nama);
+      localStorage.setItem("tk-nama-guru", data.nama);
 
       // Simpan token JWT DULU
       const authRes = await fetch("/api/auth", {
@@ -1002,6 +1016,14 @@ export default function AppTK() {
   };
 
   // ---------- UI ----------
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 font-bold text-slate-400">
+        Memuat sesi...
+      </div>
+    );
+  }
+
   return (
     <>
       <style

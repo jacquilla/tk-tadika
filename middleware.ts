@@ -1,24 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
 
 export function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
-  // Prevent clickjacking
+  // ===== SECURITY HEADERS =====
   response.headers.set("X-Frame-Options", "DENY");
-
-  // Prevent MIME sniffing
   response.headers.set("X-Content-Type-Options", "nosniff");
-
-  // Enable XSS protection
   response.headers.set("X-XSS-Protection", "1; mode=block");
-
-  // Referrer policy
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 
-  // ===== CONTENT SECURITY POLICY (untuk dev & prod) =====
-  // PENTING: CSP harus include semua external resources yang digunakan
   const isDev = process.env.NODE_ENV === "development";
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const supabaseOrigin = supabaseUrl ? new URL(supabaseUrl).origin : "";
   const supabaseWs = supabaseOrigin.replace("https://", "wss://");
@@ -28,17 +20,15 @@ export function middleware(request: NextRequest) {
     "connect-src 'self' " +
     (supabaseOrigin ? `${supabaseOrigin} ${supabaseWs} ` : "") +
     "https://drive.google.com https://api.fonnte.com; " +
-    // ... rest
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " + // unsafe-eval hanya untuk dev (React dev mode)
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " + // Google Fonts
-    "font-src 'self' https://fonts.gstatic.com; " + // Google Fonts CDN
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' https: data:; " +
-    "connect-src 'self' " + // Supabase & external APIs
+    "connect-src 'self' " +
     (process.env.NEXT_PUBLIC_SUPABASE_URL
       ? `${process.env.NEXT_PUBLIC_SUPABASE_URL} `
       : "") +
-    "https://drive.google.com " + // Google Drive (untuk image preview)
-    "https://api.fonnte.com; " + // WhatsApp API
+    "https://drive.google.com https://api.fonnte.com; " +
     "frame-ancestors 'none'; " +
     "object-src 'none'; " +
     "base-uri 'self'; " +
@@ -46,7 +36,6 @@ export function middleware(request: NextRequest) {
 
   response.headers.set("Content-Security-Policy", cspHeader);
 
-  // HSTS: Force HTTPS (production only)
   if (!isDev) {
     response.headers.set(
       "Strict-Transport-Security",
@@ -54,18 +43,34 @@ export function middleware(request: NextRequest) {
     );
   }
 
-  // Permissions Policy (formerly Feature Policy)
   response.headers.set(
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=()",
   );
 
+  // ===== JWT AUTH CHECK =====
+  const token = request.cookies.get("jwtToken")?.value;
+
+  if (token) {
+    try {
+      jwt.verify(token, process.env.JWT_SECRET!);
+      // Kalau token valid dan user ke /login → alihkan ke /tabDatang
+      if (request.nextUrl.pathname === "/login") {
+        return NextResponse.redirect(new URL("/tabDatang", request.url));
+      }
+    } catch {
+      // Token invalid/expired → biarkan user ke login
+    }
+  } else {
+    // Kalau nggak ada token dan user coba akses /tabDatang → paksa balik ke login
+    if (request.nextUrl.pathname.startsWith("/handleDatang")) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+  }
+
   return response;
 }
 
 export const config = {
-  matcher: [
-    // Jalankan middleware untuk semua routes kecuali _next, static files
-    "/((?!_next/static|_next/image|favicon.ico|public/).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|public/).*)"],
 };
