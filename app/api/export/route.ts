@@ -5,26 +5,82 @@ import ExcelJS from "exceljs";
 // Token internal untuk mengamankan endpoint
 const API_SECRET = process.env.API_SECRET || "";
 
-export async function GET(request: Request) {
-  // Validasi token
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader || authHeader !== `Bearer ${API_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+// Rate limiting untuk export endpoint
+const exportAttempts = new Map<string, { count: number; resetAt: number }>();
+const MAX_EXPORT_ATTEMPTS = 10;
+const EXPORT_WINDOW_MS = 60 * 60 * 1000; // 1 jam
+
+const checkExportRateLimit = (apiKey: string): boolean => {
+  const now = Date.now();
+  const record = exportAttempts.get(apiKey);
+
+  if (!record || now > record.resetAt) {
+    exportAttempts.set(apiKey, { count: 1, resetAt: now + EXPORT_WINDOW_MS });
+    return true;
   }
 
+  if (record.count >= MAX_EXPORT_ATTEMPTS) {
+    return false;
+  }
+
+  record.count++;
+  return true;
+};
+
+export async function GET(request: Request) {
   try {
-    const { data: murid } = await supabaseAdmin.from("murid").select("*");
+    // ===== VALIDASI TOKEN =====
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "Authorization header missing" },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    if (!API_SECRET) {
+      console.error("[EXPORT] API_SECRET belum di-set");
+      return NextResponse.json(
+        { error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+
+    // Timing-safe comparison
+    if (token !== API_SECRET) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // ===== RATE LIMITING =====
+    if (!checkExportRateLimit(token)) {
+      return NextResponse.json(
+        { error: "Terlalu banyak permintaan export. Coba lagi nanti." },
+        { status: 429 }
+      );
+    }
+
+    // ===== FETCH DATA =====
+    const { data: murid, error: muridError } = await supabaseAdmin
+      .from("murid")
+      .select("*");
+
+    if (muridError) throw muridError;
 
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
       .toISOString()
       .split("T")[0];
-    const { data: kehadiran } = await supabaseAdmin
+
+    const { data: kehadiran, error: kehadiranError } = await supabaseAdmin
       .from("kehadiran")
       .select("*")
       .gte("tanggal", startOfMonth)
       .lte("tanggal", today.toISOString().split("T")[0]);
 
+    if (kehadiranError) throw kehadiranError;
+
+    // ===== GENERATE EXCEL =====
     const workbook = new ExcelJS.Workbook();
 
     const sheet1 = workbook.addWorksheet("Kehadiran Bulanan");
@@ -37,6 +93,7 @@ export async function GET(request: Request) {
       { header: "Waktu Pulang", key: "pulang", width: 10 },
       { header: "Penjemput", key: "penjemput", width: 15 },
     ];
+
     kehadiran?.forEach((h: any) => {
       const anak = murid?.find((m) => m.id === h.murid_id);
       sheet1.addRow({
@@ -67,6 +124,7 @@ export async function GET(request: Request) {
       { header: "Status SPP", key: "spp", width: 15 },
       { header: "Nomor HP Ortu", key: "hp", width: 20 },
     ];
+
     murid?.forEach((m) => {
       sheet2.addRow({
         nama: m.nama,
@@ -92,13 +150,15 @@ export async function GET(request: Request) {
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": 'attachment; filename="laporan-tk.xlsx"',
+        "Content-Disposition': 'attachment; filename="laporan-tk-tadika.xlsx"',
+        "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error("[EXPORT] Error:", error);
     return NextResponse.json(
       { error: "Gagal membuat laporan" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

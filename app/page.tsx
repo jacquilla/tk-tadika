@@ -623,12 +623,12 @@ export default function AppTK() {
       try {
         const formData = new FormData();
         formData.append("file", fotoAktivitas);
+        formData.append("format", "webp"); // atau "jpeg", "png"
+
         const token = localStorage.getItem("tk-token") || "";
         const res = await fetch("/api/upload", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
         const data = await res.json();
