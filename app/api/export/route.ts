@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
         { error: "Authorization header missing" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       console.error("[EXPORT] API_SECRET belum di-set");
       return NextResponse.json(
         { error: "Server configuration error" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     if (!checkExportRateLimit(token)) {
       return NextResponse.json(
         { error: "Terlalu banyak permintaan export. Coba lagi nanti." },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
@@ -150,7 +150,7 @@ export async function GET(request: Request) {
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition': 'attachment; filename="laporan-tk-tadika.xlsx"',
+        "Content-Disposition": 'attachment; filename="laporan-tk-tadika.xlsx"',
         "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
@@ -158,7 +158,7 @@ export async function GET(request: Request) {
     console.error("[EXPORT] Error:", error);
     return NextResponse.json(
       { error: "Gagal membuat laporan" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
