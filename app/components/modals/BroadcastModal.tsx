@@ -79,7 +79,7 @@ export default function BroadcastModal({
           <button
             disabled={isBroadcasting}
             onClick={onKirim}
-            className="w-full bg-slate-800 text-white font-extrabold py-5 rounded-2xl active:scale-[0.97] transition-all flex justify-center gap-3 shadow-xl shadow-slate-200 btn-premium text-base"
+            className="w-full bg-emerald-500 text-white font-extrabold py-5 rounded-2xl active:scale-[0.97] transition-all flex justify-center gap-3 shadow-xl shadow-slate-200 btn-premium text-base"
           >
             {isBroadcasting ? (
               <Loading theme="outline" size={22} className="animate-spin" />

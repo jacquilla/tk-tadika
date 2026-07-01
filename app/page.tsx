@@ -1063,17 +1063,16 @@ export default function AppTK() {
                   setTampilan("kelas");
                 }}
               />
+              {/* --- GLOBAL SEARCH BAR (DIPERBAIKI) --- */}
+              {/* Efek Sticky + Glassmorphism agar selalu terlihat di semua Tab */}
+              <div className="sticky top-[85px] sm:top-[90px] z-30 px-5 pt-3 pb-3 bg-slate-50/80 backdrop-blur-xl border-b border-white/60 shadow-[0_4px_30px_rgba(0,0,0,0.02)]">
+                <SearchBar
+                  cariMurid={cariMurid}
+                  onCariChange={setCariMurid}
+                  onClear={() => setCariMurid("")}
+                />
+              </div>
               <div className="flex-1 overflow-y-auto px-6 pt-6 pb-[180px] hide-scrollbar relative">
-                {tabAktif !== "laporan" && (
-                  <SearchBar
-                    cariMurid={cariMurid}
-                    onCariChange={setCariMurid}
-                    onClear={() => {
-                      getaranHalus();
-                      setCariMurid("");
-                    }}
-                  />
-                )}
                 {tabAktif === "datang" && (
                   <TabDatang
                     muridBelumHadirFilter={muridBelumHadirFilter}
@@ -1162,20 +1161,30 @@ export default function AppTK() {
                   setCariMurid("");
                 }}
               />
-              {/* FAB Broadcast – hanya muncul di dashboard */}
+
+              {/* --- FAB BROADCAST (MASTER UI FIXED) --- */}
               <button
                 onClick={() => {
                   getaranHalus();
+                  // Reset form ke info umum setiap kali modal dibuka agar bersih
+                  setTipeSiaran("umum");
+                  setTeksSiaran(TEMPLATE_PESAN.umum);
                   setBukaSiaran(true);
                 }}
-                className="absolute bottom-[120px] right-6 bg-orange-400 text-white w-16 h-16 rounded-full shadow-[0_15px_35px_rgba(251,146,60,0.4)] hover:bg-orange-500 active:scale-90 z-40 transition-all flex items-center justify-center"
+                title="Pusat Siaran Pesan WA"
+                className="fixed bottom-28 right-6 w-14 h-14 bg-emerald-500 text-white rounded-[1.25rem] shadow-[0_10px_30px_rgba(16,185,129,0.3)] hover:bg-emerald-600 hover:shadow-[0_15px_40px_rgba(16,185,129,0.4)] hover:-translate-y-1 active:scale-90 z-[45] transition-all duration-300 flex items-center justify-center group border border-emerald-400/50"
               >
                 <VolumeNotice
                   theme="outline"
-                  size={30}
-                  strokeWidth={3}
-                  fill="#fff"
+                  size={24}
+                  strokeWidth={4}
+                  className="group-hover:scale-110 group-hover:-rotate-12 transition-transform duration-300"
                 />
+                {/* Indikator Notifikasi Merah ala WhatsApp */}
+                <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-500 border-2 border-white 500"></span>
+                </span>{" "}
               </button>
             </div>
           )}
