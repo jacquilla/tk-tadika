@@ -214,7 +214,7 @@ export default function AppTK() {
     }
     setIsCheckingSession(false);
   }, []);
-  // ---------- SESSION TIMEOUT HANDLER (1 hour = JWT expiry) ----------
+  // ---------- SESSION TIMEOUT HANDLER (12 hour = JWT expiry) ----------
   useEffect(() => {
     if (tampilan === "dashboard" || tampilan === "kelas") {
       const timer = setTimeout(() => {

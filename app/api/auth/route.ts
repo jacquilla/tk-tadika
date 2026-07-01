@@ -8,7 +8,11 @@ const ADMIN_PIN = process.env.ADMIN_PIN;
 // Simple in-memory rate limiter (production: use Redis)
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
-const checkRateLimit = (ipOrId: string, maxAttempts = 5, windowMs = 15 * 60 * 1000) => {
+const checkRateLimit = (
+  ipOrId: string,
+  maxAttempts = 5,
+  windowMs = 15 * 60 * 1000,
+) => {
   const now = Date.now();
   const record = loginAttempts.get(ipOrId);
 
@@ -31,7 +35,7 @@ export async function POST(request: Request) {
     console.error("[AUTH] JWT_SECRET belum di-set di environment variables");
     return NextResponse.json(
       { error: "Konfigurasi server bermasalah" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -42,8 +46,11 @@ export async function POST(request: Request) {
   if (!checkRateLimit(clientIp)) {
     console.warn(`[AUTH] Rate limit exceeded for IP: ${clientIp}`);
     return NextResponse.json(
-      { error: "Terlalu banyak percobaan login. Coba lagi dalam beberapa menit." },
-      { status: 429 }
+      {
+        error:
+          "Terlalu banyak percobaan login. Coba lagi dalam beberapa menit.",
+      },
+      { status: 429 },
     );
   }
 
@@ -52,7 +59,7 @@ export async function POST(request: Request) {
     if (!contentType?.includes("application/json")) {
       return NextResponse.json(
         { error: "Content-Type harus application/json" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -62,7 +69,7 @@ export async function POST(request: Request) {
     if (!pin || !role) {
       return NextResponse.json(
         { error: "pin dan role wajib diisi" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -70,14 +77,14 @@ export async function POST(request: Request) {
     if (typeof pin !== "string" || typeof role !== "string") {
       return NextResponse.json(
         { error: "pin dan role harus berupa string" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (pin.length > 100) {
       return NextResponse.json(
         { error: "PIN terlalu panjang" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -91,7 +98,7 @@ export async function POST(request: Request) {
         console.error("[AUTH] ADMIN_PIN belum di-set di environment variables");
         return NextResponse.json(
           { error: "Konfigurasi server bermasalah" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -118,7 +125,7 @@ export async function POST(request: Request) {
       console.error("[AUTH] Error query guru saat login:", error);
       return NextResponse.json(
         { error: "Terjadi kesalahan server" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -126,14 +133,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "PIN salah" }, { status: 401 });
     }
 
-    const token = jwt.sign(
-      { role: "guru", guru_id: guru.id },
-      JWT_SECRET,
-      {
-        expiresIn: "1h", // Reduced from 12h
-        algorithm: "HS256",
-      }
-    );
+    const token = jwt.sign({ role: "guru", guru_id: guru.id }, JWT_SECRET, {
+      expiresIn: "12h",
+      algorithm: "HS256",
+    });
 
     return NextResponse.json({
       token,
@@ -144,7 +147,7 @@ export async function POST(request: Request) {
     // Generic error message (jangan expose stack trace)
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
