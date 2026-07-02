@@ -20,26 +20,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ["javascript-typescript"] # Menargetkan kode Next.js, TS, dan Deno Edge Functions Anda
+        language: ["javascript-typescript"]
 
     steps:
+      # Upgrade ke v4 resmi yang mendukung Node.js terbaru
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Menginisialisasi perangkat CodeQL untuk memindai kode
+      # Upgrade ke v4 (Sesuai rekomendasi GitHub Blog 2025/2026)
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          # Pilihan 'security-extended' mencari celah keamanan yang lebih dalam
           queries: security-extended,security-and-quality
 
-      # Autobuild mencoba membangun (compile) kode JavaScript/TypeScript Anda otomatis
+      # Upgrade ke v4
       - name: Autobuild Code
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
-      # Proses utama pemindaian dan pembuatan laporan
+      # Upgrade ke v4
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{matrix.language}}"
