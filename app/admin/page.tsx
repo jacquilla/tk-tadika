@@ -36,6 +36,41 @@ interface KehadiranDenganMurid extends Kehadiran {
   murid?: Pick<Murid, "nama" | "kelas"> | null;
 }
 
+// Baris tabel iuran_spp (belum diekspor dari types/database)
+interface IuranSppRow {
+  bulan: number;
+  tanggal_bayar: string | null;
+}
+
+// Bentuk respons endpoint internal, dipakai untuk mengganti `await res.json()`
+// yang secara default bertipe `any`
+interface AuthResponse {
+  token?: string;
+  error?: string;
+}
+
+interface UploadResponse {
+  imageUrl?: string;
+  error?: string;
+}
+
+interface ApiErrorResponse {
+  error?: string;
+}
+
+// Daftar tab admin, dipakai untuk state & konfigurasi navigasi
+type TabAdmin = "utama" | "log" | "riwayat" | "kehadiran" | "buku";
+
+// Semua ikon dari @icon-park/react berbagi tipe komponen yang sama,
+// jadi cukup ambil salah satu sebagai referensi tipe
+type IconComponent = typeof ChartPie;
+
+interface TabConfig {
+  id: TabAdmin;
+  label: string;
+  icon: IconComponent;
+}
+
 const NAMA_BULAN = [
   "Jan",
   "Feb",
@@ -49,6 +84,14 @@ const NAMA_BULAN = [
   "Okt",
   "Nov",
   "Des",
+];
+
+const TAB_LIST: TabConfig[] = [
+  { id: "utama", label: "Dashboard", icon: ChartPie },
+  { id: "kehadiran", label: "Kehadiran", icon: Peoples },
+  { id: "buku", label: "Buku Penghubung", icon: BookOne },
+  { id: "riwayat", label: "Keuangan SPP", icon: Wallet },
+  { id: "log", label: "Log Sistem", icon: History },
 ];
 
 export default function AdminPage() {
@@ -74,9 +117,7 @@ export default function AdminPage() {
   >([]);
 
   // ---------- Tab & Filter ----------
-  const [tabAdmin, setTabAdmin] = useState<
-    "utama" | "log" | "riwayat" | "kehadiran" | "buku"
-  >("utama");
+  const [tabAdmin, setTabAdmin] = useState<TabAdmin>("utama");
   const [cariAdmin, setCariAdmin] = useState("");
   const [filterKelas, setFilterKelas] = useState("");
   const [filterSpp, setFilterSpp] = useState("");
@@ -136,7 +177,7 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin, role: "admin" }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as AuthResponse;
       if (res.ok && data.token) {
         localStorage.setItem("tk-token", data.token);
         setAutentikasi(true);
@@ -163,13 +204,14 @@ export default function AdminPage() {
       .select("*")
       .order("nama");
     if (muridData) {
-      setMurid(muridData as Murid[]);
-      setTotalMurid(muridData.length);
-      setTotalLunas(
-        muridData.filter((m: any) => m?.status_spp === "LUNAS").length,
-      );
+      const daftarMurid = muridData as Murid[];
+      setMurid(daftarMurid);
+      setTotalMurid(daftarMurid.length);
+      setTotalLunas(daftarMurid.filter((m) => m.status_spp === "LUNAS").length);
       setTotalPiutang(
-        muridData.filter((m: any) => m?.status_spp !== "LUNAS").length,
+        daftarMurid
+          .filter((m) => m.status_spp === "MENUNGGAK")
+          .reduce((sum, m) => sum + (m.nominal_spp || 350000), 0),
       );
     }
 
@@ -200,10 +242,11 @@ export default function AdminPage() {
       .eq("tanggal", today)
       .order("waktu_datang", { ascending: true });
     if (hadirData) {
-      setKehadiranHariIni(hadirData as KehadiranDenganMurid[]);
+      const daftarHadir = hadirData as KehadiranDenganMurid[];
+      setKehadiranHariIni(daftarHadir);
       setTotalHadir(
-        hadirData.filter(
-          (h: any) => h.status_hadir === "hadir" || h.status_hadir === "pulang",
+        daftarHadir.filter(
+          (h) => h.status_hadir === "hadir" || h.status_hadir === "pulang",
         ).length,
       );
     }
@@ -239,7 +282,7 @@ export default function AdminPage() {
     const map: Record<number, string | null> = {};
     for (let i = 1; i <= 12; i++) map[i] = null;
     if (data)
-      data.forEach((d: any) => {
+      (data as IuranSppRow[]).forEach((d) => {
         map[d.bulan] = d.tanggal_bayar;
       });
     setIuranData(map);
@@ -281,9 +324,15 @@ export default function AdminPage() {
     }
   };
 
-  const lihatBuku = async (anak: Murid) => {
+  // `anak` boleh null untuk menutup accordion Buku Penghubung yang sedang terbuka
+  const lihatBuku = async (anak: Murid | null) => {
     getaranHalus();
     setBukuMurid(anak);
+    if (!anak) {
+      setBukuLog([]);
+      setBukuSheet(null);
+      return;
+    }
     const today = new Date().toISOString().split("T")[0];
     const { data: logData } = await supabase
       .from("log_aktivitas")
@@ -315,7 +364,7 @@ export default function AdminPage() {
           headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: fd,
         });
-        const d = await res.json();
+        const d = (await res.json()) as UploadResponse;
         if (d.imageUrl) fotoUrl = d.imageUrl;
         else {
           alert("Gagal upload foto.");
@@ -373,7 +422,7 @@ export default function AdminPage() {
         headers: { Authorization: `Bearer ${token}` },
         body: fd,
       });
-      const d = await res.json();
+      const d = (await res.json()) as UploadResponse;
       if (d.imageUrl) fotoUrl = d.imageUrl;
     }
     await fetch("/api/murid", {
@@ -455,7 +504,7 @@ export default function AdminPage() {
           ambilData();
           catatLog("Hapus guru", nama);
         } else {
-          const errData = await res.json();
+          const errData = (await res.json()) as ApiErrorResponse;
           alert(errData.error || "Gagal menghapus guru");
         }
       } catch (err) {
@@ -481,7 +530,7 @@ export default function AdminPage() {
         ambilData();
         catatLog("Ganti PIN guru");
       } else {
-        const errData = await res.json();
+        const errData = (await res.json()) as ApiErrorResponse;
         alert(errData.error || "Gagal mengganti PIN");
       }
     } catch (err) {
@@ -500,7 +549,10 @@ export default function AdminPage() {
     return list;
   };
 
-  const SESSION_DURATION = 12 * 60 * 60 * 1000;
+  const SESSION_DURATION = 6 * 60 * 60 * 1000;
+  {
+    /* ========== 6 JAM ========== */
+  }
 
   useEffect(() => {
     if (autentikasi) {
@@ -611,18 +663,12 @@ export default function AdminPage() {
 
           {/* ========== NAVIGASI TAB ========== */}
           <div className="flex gap-2 overflow-x-auto hide-scrollbar mb-8 pb-2 px-1">
-            {[
-              { id: "utama", label: "Dashboard", icon: ChartPie },
-              { id: "kehadiran", label: "Kehadiran", icon: Peoples },
-              { id: "buku", label: "Buku Penghubung", icon: BookOne },
-              { id: "riwayat", label: "Keuangan SPP", icon: Wallet },
-              { id: "log", label: "Log Sistem", icon: History },
-            ].map((t) => (
+            {TAB_LIST.map((t) => (
               <button
                 key={t.id}
                 onClick={() => {
                   getaranHalus();
-                  setTabAdmin(t.id as any);
+                  setTabAdmin(t.id);
                 }}
                 className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[11px] font-extrabold uppercase tracking-wider whitespace-nowrap transition-all duration-300 ${
                   tabAdmin === t.id
@@ -1121,9 +1167,7 @@ export default function AdminPage() {
                     <button
                       onClick={() => {
                         getaranHalus();
-                        lihatBuku(
-                          bukuMurid?.id === anak.id ? (null as any) : anak,
-                        );
+                        lihatBuku(bukuMurid?.id === anak.id ? null : anak);
                       }}
                       className="w-full text-left p-4 flex items-center justify-between active:bg-slate-50 transition-colors"
                     >
