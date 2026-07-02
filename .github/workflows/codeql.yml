@@ -1,0 +1,45 @@
+name: "CodeQL Advanced Security Analysis"
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+  schedule:
+    - cron: "0 0 * * 0" # Berjalan otomatis setiap hari Minggu jam 12 malam
+
+jobs:
+  analyze:
+    name: Analyze Code Quality
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["javascript-typescript"] # Menargetkan kode Next.js, TS, dan Deno Edge Functions Anda
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Menginisialisasi perangkat CodeQL untuk memindai kode
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Pilihan 'security-extended' mencari celah keamanan yang lebih dalam
+          queries: security-extended,security-and-quality
+
+      # Autobuild mencoba membangun (compile) kode JavaScript/TypeScript Anda otomatis
+      - name: Autobuild Code
+        uses: github/codeql-action/autobuild@v3
+
+      # Proses utama pemindaian dan pembuatan laporan
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
