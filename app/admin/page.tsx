@@ -170,7 +170,9 @@ export default function AdminPage() {
       );
       setTotalPiutang(
         muridData
-          .filter((m: unknown) => m.status_spp !== "LUNAS")
+          .filter(
+            (m: any) => (m as { status_spp: string }).status_spp === "LUNAS",
+          )
           .reduce((sum, m: unknown) => sum + (m.nominal_spp || 350000), 0),
       );
     }
