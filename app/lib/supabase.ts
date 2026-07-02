@@ -28,9 +28,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Wrapper untuk query dengan timeout
 export const supabaseWithTimeout = async <T>(
-  query: Promise<{ data: T | null; error: any }>,
+  query: Promise<{ data: T | null; error: unknown }>,
   timeoutMs: number = 10000,
-): Promise<{ data: T | null; error: any }> => {
+): Promise<{ data: T | null; error: unknown }> => {
   return Promise.race([
     query,
     new Promise<{ data: null; error: Error }>((_, reject) =>

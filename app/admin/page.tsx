@@ -166,7 +166,7 @@ export default function AdminPage() {
       setMurid(muridData as Murid[]);
       setTotalMurid(muridData.length);
       setTotalLunas(
-        muridData.filter((m: any) => m.status_spp === "LUNAS").length,
+        muridData.filter((m: unknown) => m.status_spp === "LUNAS").length,
       );
       setTotalPiutang(
         muridData

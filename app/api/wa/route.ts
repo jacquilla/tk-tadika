@@ -15,14 +15,14 @@ export async function POST(request: Request) {
     if (!targetHp || typeof targetHp !== "string") {
       return NextResponse.json(
         { error: "targetHp wajib diisi dan harus string" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!pesanCustom || typeof pesanCustom !== "string") {
       return NextResponse.json(
         { error: "pesanCustom wajib diisi dan harus string" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -30,27 +30,25 @@ export async function POST(request: Request) {
     if (!/^[\d+\-\s()]+$/.test(targetHp) || targetHp.length > 20) {
       return NextResponse.json(
         { error: "Format nomor HP tidak valid" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Validate message length
-    if (pesanCustom.length > 5000) {
+    if (pesanCustom.length > 3000) {
       return NextResponse.json(
-        { error: "Pesan terlalu panjang (max 5000 karakter)" },
-        { status: 400 }
+        { error: "Pesan terlalu panjang (max 3000 karakter)" },
+        { status: 400 },
       );
     }
 
     const TOKEN_FONNTE = process.env.FONNTE_TOKEN || "";
 
     if (!TOKEN_FONNTE) {
-      console.error(
-        "[WA] FONNTE_TOKEN belum di-set di environment variables"
-      );
+      console.error("[WA] FONNTE_TOKEN belum di-set di environment variables");
       return NextResponse.json(
         { error: "Konfigurasi server bermasalah" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -77,14 +75,14 @@ export async function POST(request: Request) {
     } else {
       return NextResponse.json(
         { success: false, pesan: result.reason || "Ditolak Fonnte" },
-        { status: 400 }
+        { status: 400 },
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[WA] Error:", error);
     return NextResponse.json(
       { success: false, pesan: "Gagal mengirim pesan" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

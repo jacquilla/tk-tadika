@@ -142,7 +142,7 @@ export async function POST(request: Request) {
       token,
       guru: { id: guru.id, nama: guru.nama },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[AUTH] Error saat login:", error);
     // Generic error message (jangan expose stack trace)
     return NextResponse.json(

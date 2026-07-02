@@ -1,0 +1,423 @@
+diff --git a/app/api/export/route.ts b/app/api/export/route.ts
+--- a/app/api/export/route.ts
++++ b/app/api/export/route.ts
+@@ -97,1 +97,1 @@
+-    kehadiran?.forEach((h: any) => {
++    kehadiran?.forEach((h: unknown) => {
+@@ -157,1 +157,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {
+diff --git a/app/api/wa/route.ts b/app/api/wa/route.ts
+--- a/app/api/wa/route.ts
++++ b/app/api/wa/route.ts
+@@ -63,1 +63,1 @@
+-    const timeoutId = setTimeout(() => controller.abort(), 10000);
++    const timeoutId = setTimeout(() => { controller.abort(); }, 10000);
+@@ -83,1 +83,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {
+diff --git a/app/components/dashboard/TabLaporan.tsx b/app/components/dashboard/TabLaporan.tsx
+--- a/app/components/dashboard/TabLaporan.tsx
++++ b/app/components/dashboard/TabLaporan.tsx
+@@ -113,1 +113,1 @@
+-          onClick={() => handleTabSwitch("harian")}
++          onClick={() => { handleTabSwitch("harian"); }}
+@@ -123,1 +123,1 @@
+-          onClick={() => handleTabSwitch("mingguan")}
++          onClick={() => { handleTabSwitch("mingguan"); }}
+@@ -212,1 +212,1 @@
+-                              {kehadiranHarian[anak.id]?.waktu_datang
++                              {kehadiranHarian[anak.id].waktu_datang
+@@ -214,1 +214,1 @@
+-                                    kehadiranHarian[anak.id]!
++                                    kehadiranHarian[anak.id]
+@@ -233,1 +233,1 @@
+-                              {kehadiranHarian[anak.id]?.waktu_pulang
++                              {kehadiranHarian[anak.id].waktu_pulang
+@@ -308,1 +308,1 @@
+-                                      {typeof log.metadata?.foto_url ===
++                                      {typeof log.metadata.foto_url ===
+@@ -462,1 +462,1 @@
+-                              ([date, data]: [string, any]) => {
++                              ([date, data]: [string, unknown]) => {
+@@ -504,1 +504,1 @@
+-                                          (k: any, i: number) => (
++                                          (k: unknown, i: number) => (
+diff --git a/app/api/riwayat-spp/route.ts b/app/api/riwayat-spp/route.ts
+--- a/app/api/riwayat-spp/route.ts
++++ b/app/api/riwayat-spp/route.ts
+@@ -17,1 +17,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {
+diff --git a/app/api/log-aktivitas/edit/route.ts b/app/api/log-aktivitas/edit/route.ts
+--- a/app/api/log-aktivitas/edit/route.ts
++++ b/app/api/log-aktivitas/edit/route.ts
+@@ -93,1 +93,1 @@
+-    const updatePayload: any = { deskripsi };
++    const updatePayload: unknown = { deskripsi };
+@@ -122,1 +122,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {
+diff --git a/app/components/BottomNav.tsx b/app/components/BottomNav.tsx
+--- a/app/components/BottomNav.tsx
++++ b/app/components/BottomNav.tsx
+@@ -25,1 +25,1 @@
+-            onClick={() => onTabChange(tab.id)}
++            onClick={() => { onTabChange(tab.id); }}
+diff --git a/app/page.tsx b/app/page.tsx
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -119,1 +119,1 @@
+-const performLogout = (setTampilan: any, setNamaGuru: any) => {
++const performLogout = (setTampilan: unknown, setNamaGuru: any) => {
+@@ -156,1 +156,1 @@
+-  const [logKegiatan, setLogKegiatan] = useState<Record<string, any[]>>({});
++  const [logKegiatan, setLogKegiatan] = useState<Record<string, unknown[]>>({});
+@@ -188,1 +188,1 @@
+-  const [dataLaporan, setDataLaporan] = useState<Record<string, any[]>>({});
++  const [dataLaporan, setDataLaporan] = useState<Record<string, unknown[]>>({});
+@@ -227,1 +227,1 @@
+-      return () => clearTimeout(timer);
++      return () => { clearTimeout(timer); };
+@@ -293,1 +293,1 @@
+-          const detailMap: Record<string, any> = {};
++          const detailMap: Record<string, unknown> = {};
+@@ -313,1 +313,1 @@
+-          const sheetMap: Record<string, any> = {};
++          const sheetMap: Record<string, unknown> = {};
+@@ -338,1 +338,1 @@
+-          const logMap: Record<string, any[]> = {};
++          const logMap: Record<string, unknown[]> = {};
+@@ -351,1 +351,1 @@
+-    tarikDataAwal();
++    void tarikDataAwal();
+@@ -392,1 +392,1 @@
+-    cekKehadiranGuru();
++    void cekKehadiranGuru();
+@@ -404,1 +404,1 @@
+-  const filterNama = (list: any[]) => {
++  const filterNama = (list: unknown[]) => {
+@@ -536,1 +536,1 @@
+-    if (!teksChatPersonal.trim()) return alert("Pesan tidak boleh kosong!");
++    if (!teksChatPersonal.trim()) { alert("Pesan tidak boleh kosong!"); return; }
+@@ -623,1 +623,1 @@
+-    if (pilihanAnak.length === 0) return alert("Pilih minimal 1 anak!");
++    if (pilihanAnak.length === 0) { alert("Pilih minimal 1 anak!"); return; }
+@@ -632,1 +632,1 @@
+-      return alert("Isi catatan kegiatan, foto, atau daily sheet!");
++      { alert("Isi catatan kegiatan, foto, atau daily sheet!"); return; }
+@@ -748,1 +748,1 @@
+-    metadata: any,
++    metadata: unknown,
+@@ -817,1 +817,1 @@
+-          newLog[muridId] = newLog[muridId].map((l: any) =>
++          newLog[muridId] = newLog[muridId].map((l: unknown) =>
+@@ -909,1 +909,1 @@
+-          (dailyMeta?.foto_url
++          (dailyMeta.foto_url
+@@ -941,1 +941,1 @@
+-    if (!teksSiaran.trim()) return alert("Pesan tidak boleh kosong!");
++    if (!teksSiaran.trim()) { alert("Pesan tidak boleh kosong!"); return; }
+@@ -980,1 +980,1 @@
+-      const dailyMap: Record<string, any> = {};
++      const dailyMap: Record<string, unknown> = {};
+@@ -992,1 +992,1 @@
+-      logData?.forEach((l: any) => {
++      logData?.forEach((l: unknown) => {
+@@ -1094,1 +1094,1 @@
+-                  onClear={() => setCariMurid("")}
++                  onClear={() => { setCariMurid(""); }}
+@@ -1140,1 +1140,1 @@
+-                      setPenjemput((prev) => ({ ...prev, [id]: val }))
++                      { setPenjemput((prev) => ({ ...prev, [id]: val })); }
+@@ -1143,1 +1143,1 @@
+-                      setPenjemputCustom((prev) => ({ ...prev, [id]: val }))
++                      { setPenjemputCustom((prev) => ({ ...prev, [id]: val })); }
+@@ -1146,1 +1146,1 @@
+-                      setKetPenjemput((prev) => ({ ...prev, [id]: val }))
++                      { setKetPenjemput((prev) => ({ ...prev, [id]: val })); }
+@@ -1174,1 +1174,1 @@
+-                    onEditLog={(log) => setEditLogTarget(log)}
++                    onEditLog={(log) => { setEditLogTarget(log); }}
+@@ -1218,1 +1218,1 @@
+-            onTutup={() => setChatPersonalAktif(null)}
++            onTutup={() => { setChatPersonalAktif(null); }}
+diff --git a/app/api/kehadiran-guru/route.ts b/app/api/kehadiran-guru/route.ts
+--- a/app/api/kehadiran-guru/route.ts
++++ b/app/api/kehadiran-guru/route.ts
+@@ -52,1 +52,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {
+diff --git a/app/api/log-aktivitas/route.ts b/app/api/log-aktivitas/route.ts
+--- a/app/api/log-aktivitas/route.ts
++++ b/app/api/log-aktivitas/route.ts
+@@ -127,1 +127,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {
+diff --git a/app/components/modals/EditLogModal.tsx b/app/components/modals/EditLogModal.tsx
+--- a/app/components/modals/EditLogModal.tsx
++++ b/app/components/modals/EditLogModal.tsx
+@@ -12,1 +12,1 @@
+-    metadata: any,
++    metadata: unknown,
+@@ -97,1 +97,1 @@
+-                onChange={(e) => setEditedTime(e.target.value)}
++                onChange={(e) => { setEditedTime(e.target.value); }}
+@@ -115,1 +115,1 @@
+-              onChange={(e) => setDeskripsi(e.target.value)}
++              onChange={(e) => { setDeskripsi(e.target.value); }}
+@@ -117,1 +117,1 @@
+-              onFocus={(e) => e.target.select()}
++              onFocus={(e) => { e.target.select(); }}
+@@ -136,1 +136,1 @@
+-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
++                  onChange={(e) => { setFile(e.target.files?.[0] || null); }}
+@@ -164,1 +164,1 @@
+-            {!file && typeof log.metadata?.foto_url === "string" && (
++            {!file && typeof log.metadata.foto_url === "string" && (
+diff --git a/app/components/dashboard/TabPulang.tsx b/app/components/dashboard/TabPulang.tsx
+--- a/app/components/dashboard/TabPulang.tsx
++++ b/app/components/dashboard/TabPulang.tsx
+@@ -79,1 +79,1 @@
+-                onClick={() => onChat(anak)}
++                onClick={() => { onChat(anak); }}
+@@ -99,1 +99,1 @@
+-                  onChange={(e) => onPenjemputChange(anak.id, e.target.value)}
++                  onChange={(e) => { onPenjemputChange(anak.id, e.target.value); }}
+@@ -123,1 +123,1 @@
+-                    onChange={(e) => onKetChange(anak.id, e.target.value)}
++                    onChange={(e) => { onKetChange(anak.id, e.target.value); }}
+@@ -131,1 +131,1 @@
+-                onClick={() => onPulang(anak)}
++                onClick={() => { onPulang(anak); }}
+diff --git a/app/api/murid/route.ts b/app/api/murid/route.ts
+--- a/app/api/murid/route.ts
++++ b/app/api/murid/route.ts
+@@ -85,1 +85,1 @@
+-    const sanitizedBody: any = {};
++    const sanitizedBody: unknown = {};
+@@ -103,1 +103,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {
+@@ -130,1 +130,1 @@
+-    const sanitizedUpdate: any = {};
++    const sanitizedUpdate: unknown = {};
+diff --git a/app/components/modals/ChatModal.tsx b/app/components/modals/ChatModal.tsx
+--- a/app/components/modals/ChatModal.tsx
++++ b/app/components/modals/ChatModal.tsx
+@@ -58,1 +58,1 @@
+-            onChange={(e) => onUbahTeks(e.target.value)}
++            onChange={(e) => { onUbahTeks(e.target.value); }}
+diff --git a/app/admin/page.tsx b/app/admin/page.tsx
+--- a/app/admin/page.tsx
++++ b/app/admin/page.tsx
+@@ -169,1 +169,1 @@
+-        muridData.filter((m: any) => m.status_spp === "LUNAS").length,
++        muridData.filter((m: unknown) => m.status_spp === "LUNAS").length,
+@@ -173,1 +173,1 @@
+-          .filter((m: any) => m.status_spp !== "LUNAS")
++          .filter((m: unknown) => m.status_spp !== "LUNAS")
+@@ -174,1 +174,1 @@
+-          .reduce((sum, m: any) => sum + (m.nominal_spp || 350000), 0),
++          .reduce((sum, m: unknown) => sum + (m.nominal_spp || 350000), 0),
+@@ -208,1 +208,1 @@
+-          (h: any) => h.status_hadir === "hadir" || h.status_hadir === "pulang",
++          (h: unknown) => h.status_hadir === "hadir" || h.status_hadir === "pulang",
+@@ -244,1 +244,1 @@
+-      data.forEach((d: any) => {
++      data.forEach((d: unknown) => {
+@@ -297,1 +297,1 @@
+-    const sheet = (logData as LogAktivitas[])?.find(
++    const sheet = (logData as LogAktivitas[]).find(
+@@ -307,1 +307,1 @@
+-      return alert("Lengkapi data murid.");
++      { alert("Lengkapi data murid."); return; }
+@@ -350,1 +350,1 @@
+-    ambilData();
++    void ambilData();
+@@ -351,1 +351,1 @@
+-    catatLog("Tambah murid", namaBaru);
++    void catatLog("Tambah murid", namaBaru);
+@@ -396,1 +396,1 @@
+-    catatLog("Edit murid", editNama);
++    void catatLog("Edit murid", editNama);
+@@ -408,1 +408,1 @@
+-      catatLog("Hapus murid", nama);
++      void catatLog("Hapus murid", nama);
+@@ -421,1 +421,1 @@
+-    catatLog("Pindah kelas", `${nama} â ${baru}`);
++    void catatLog("Pindah kelas", `${nama} â ${baru}`);
+@@ -428,1 +428,1 @@
+-      return alert("Lengkapi data guru.");
++      { alert("Lengkapi data guru."); return; }
+@@ -434,1 +434,1 @@
+-    if (exist) return alert("PIN sudah dipakai. Gunakan kombinasi lain.");
++    if (exist) { alert("PIN sudah dipakai. Gunakan kombinasi lain."); return; }
+@@ -443,1 +443,1 @@
+-    catatLog("Tambah guru", namaGuruBaru);
++    void catatLog("Tambah guru", namaGuruBaru);
+@@ -458,1 +458,1 @@
+-          catatLog("Hapus guru", nama);
++          void catatLog("Hapus guru", nama);
+@@ -484,1 +484,1 @@
+-        catatLog("Ganti PIN guru");
++        void catatLog("Ganti PIN guru");
+@@ -514,1 +514,1 @@
+-      return () => clearTimeout(timer);
++      return () => { clearTimeout(timer); };
+@@ -546,1 +546,1 @@
+-            onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
++            onChange={(e) => { setPin(e.target.value.replace(/\D/g, "")); }}
+@@ -627,1 +627,1 @@
+-                  setTabAdmin(t.id as any);
++                  setTabAdmin(t.id as unknown);
+@@ -787,1 +787,1 @@
+-                    onChange={(e) => setCariAdmin(e.target.value)}
++                    onChange={(e) => { setCariAdmin(e.target.value); }}
+@@ -859,1 +859,1 @@
+-                          onClick={() => bukaEdit(m)}
++                          onClick={() => { bukaEdit(m); }}
+@@ -897,1 +897,1 @@
+-                      onChange={(e) => setNamaBaru(e.target.value)}
++                      onChange={(e) => { setNamaBaru(e.target.value); }}
+@@ -904,1 +904,1 @@
+-                      onChange={(e) => setNoHpBaru(e.target.value)}
++                      onChange={(e) => { setNoHpBaru(e.target.value); }}
+@@ -913,1 +913,1 @@
+-                      onChange={(e) => setNominalBaru(e.target.value)}
++                      onChange={(e) => { setNominalBaru(e.target.value); }}
+@@ -918,1 +918,1 @@
+-                      onChange={(e) => setKelasBaru(e.target.value)}
++                      onChange={(e) => { setKelasBaru(e.target.value); }}
+@@ -976,1 +976,1 @@
+-                    onChange={(e) => setNamaGuruBaru(e.target.value)}
++                    onChange={(e) => { setNamaGuruBaru(e.target.value); }}
+@@ -987,1 +987,1 @@
+-                      setPinGuruBaru(e.target.value.replace(/\D/g, ""))
++                      { setPinGuruBaru(e.target.value.replace(/\D/g, "")); }
+@@ -1127,1 +1127,1 @@
+-                          bukuMurid?.id === anak.id ? (null as any) : anak,
++                          bukuMurid?.id === anak.id ? (null as unknown) : anak,
+@@ -1279,1 +1279,1 @@
+-                            ambilIuran(anak);
++                            void ambilIuran(anak);
+@@ -1324,1 +1324,1 @@
+-                            Rp {r.nominal?.toLocaleString("id-ID")}
++                            Rp {r.nominal.toLocaleString("id-ID")}
+@@ -1429,1 +1429,1 @@
+-                            simpanTanggalBayar(bulan, null);
++                            void simpanTanggalBayar(bulan, null);
+@@ -1442,1 +1442,1 @@
+-                          simpanTanggalBayar(bulan, e.target.value || null);
++                          void simpanTanggalBayar(bulan, e.target.value || null);
+@@ -1468,1 +1468,1 @@
+-                onChange={(e) => setEditNama(e.target.value)}
++                onChange={(e) => { setEditNama(e.target.value); }}
+diff --git a/app/api/upload/route.ts b/app/api/upload/route.ts
+--- a/app/api/upload/route.ts
++++ b/app/api/upload/route.ts
+@@ -48,1 +48,1 @@
+-    if (!IMAGE_FORMATS.includes(format as any)) {
++    if (!IMAGE_FORMATS.includes(format as unknown)) {
+@@ -158,1 +158,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {
+diff --git a/app/components/SearchBar.tsx b/app/components/SearchBar.tsx
+--- a/app/components/SearchBar.tsx
++++ b/app/components/SearchBar.tsx
+@@ -24,1 +24,1 @@
+-        onChange={(e) => onCariChange(e.target.value)}
++        onChange={(e) => { onCariChange(e.target.value); }}
+diff --git a/app/api/auth/route.ts b/app/api/auth/route.ts
+--- a/app/api/auth/route.ts
++++ b/app/api/auth/route.ts
+@@ -145,1 +145,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {
+diff --git a/app/components/dashboard/TabKegiatan.tsx b/app/components/dashboard/TabKegiatan.tsx
+--- a/app/components/dashboard/TabKegiatan.tsx
++++ b/app/components/dashboard/TabKegiatan.tsx
+@@ -339,1 +339,1 @@
+-                  onClick={() => addBlock(kat.id)}
++                  onClick={() => { addBlock(kat.id); }}
+@@ -375,1 +375,1 @@
+-                        onClick={() => removeBlock(block.id)}
++                        onClick={() => { removeBlock(block.id); }}
+@@ -387,1 +387,1 @@
+-                        updateBlockText(block.id, e.target.value)
++                        { updateBlockText(block.id, e.target.value); }
+@@ -404,1 +404,1 @@
+-                  onChange={(e) => onFotoChange(e.target.files?.[0] || null)}
++                  onChange={(e) => { onFotoChange(e.target.files?.[0] || null); }}
+@@ -475,1 +475,1 @@
+-                  onChange={(e) => onTidurMulaiChange(e.target.value)}
++                  onChange={(e) => { onTidurMulaiChange(e.target.value); }}
+@@ -484,1 +484,1 @@
+-                  onChange={(e) => onTidurSelesaiChange(e.target.value)}
++                  onChange={(e) => { onTidurSelesaiChange(e.target.value); }}
+diff --git a/app/api/kehadiran/route.ts b/app/api/kehadiran/route.ts
+--- a/app/api/kehadiran/route.ts
++++ b/app/api/kehadiran/route.ts
+@@ -61,1 +61,1 @@
+-    const sanitizedBody: any = {};
++    const sanitizedBody: unknown = {};
+@@ -78,1 +78,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {
+@@ -125,1 +125,1 @@
+-    const update: any = {};
++    const update: unknown = {};
+diff --git a/app/components/LoginScreen.tsx b/app/components/LoginScreen.tsx
+--- a/app/components/LoginScreen.tsx
++++ b/app/components/LoginScreen.tsx
+@@ -136,1 +136,1 @@
+-                onChange={(e) => onPinChange(e.target.value.replace(/\D/g, ""))}
++                onChange={(e) => { onPinChange(e.target.value.replace(/\D/g, "")); }}
+@@ -148,1 +148,1 @@
+-                onClick={() => setShowPin(!showPin)}
++                onClick={() => { setShowPin(!showPin); }}
+@@ -189,1 +189,1 @@
+-          onClick={() => setIsModalOpen(true)}
++          onClick={() => { setIsModalOpen(true); }}
+@@ -224,1 +224,1 @@
+-              onClick={() => setIsModalOpen(false)}
++              onClick={() => { setIsModalOpen(false); }}
+diff --git a/app/components/modals/BroadcastModal.tsx b/app/components/modals/BroadcastModal.tsx
+--- a/app/components/modals/BroadcastModal.tsx
++++ b/app/components/modals/BroadcastModal.tsx
+@@ -62,1 +62,1 @@
+-              onClick={() => onPilihTipe("umum", templateUmum)}
++              onClick={() => { onPilihTipe("umum", templateUmum); }}
+@@ -68,1 +68,1 @@
+-              onClick={() => onPilihTipe("spp", templateSpp)}
++              onClick={() => { onPilihTipe("spp", templateSpp); }}
+@@ -77,1 +77,1 @@
+-            onChange={(e) => onUbahTeks(e.target.value)}
++            onChange={(e) => { onUbahTeks(e.target.value); }}
+diff --git a/app/api/guru/route.ts b/app/api/guru/route.ts
+--- a/app/api/guru/route.ts
++++ b/app/api/guru/route.ts
+@@ -49,1 +49,1 @@
+-    const sanitizedBody: any = {};
++    const sanitizedBody: unknown = {};
+@@ -60,1 +60,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {
+@@ -86,1 +86,1 @@
+-    const sanitizedUpdate: any = {};
++    const sanitizedUpdate: unknown = {};
+diff --git a/app/api/log-admin/route.ts b/app/api/log-admin/route.ts
+--- a/app/api/log-admin/route.ts
++++ b/app/api/log-admin/route.ts
+@@ -14,1 +14,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {
+diff --git a/app/api/iuran-spp/route.ts b/app/api/iuran-spp/route.ts
+--- a/app/api/iuran-spp/route.ts
++++ b/app/api/iuran-spp/route.ts
+@@ -65,1 +65,1 @@
+-    const sanitizedBody: any = {};
++    const sanitizedBody: unknown = {};
+@@ -77,1 +77,1 @@
+-  } catch (error: any) {
++  } catch (error: unknown) {

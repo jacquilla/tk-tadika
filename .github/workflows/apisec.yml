@@ -1,0 +1,49 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: APIsec Security Scan
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  schedule:
+    - cron: '38 11 * * 5' # Berjalan otomatis seminggu sekali
+
+  # Memungkinkan Anda menjalankan ini secara manual lewat tab Actions
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  Trigger_APIsec_scan:
+    permissions:
+      security-events: write # Wajib untuk mengupload hasil SARIF ke tab Security
+      actions: read
+    runs-on: ubuntu-latest
+
+    steps:
+       - name: Checkout Repository
+         uses: actions/checkout@v4
+
+       # 1. Memicu automated pengetesan langsung dari APIsec platform
+       - name: APIsec scan
+         uses: apisec-inc/apisec-run-scan@025432089674a28ba8fb55f8ab06c10215e772ea
+         with:
+          # Kredensial akun APIsec Anda yang disimpan di GitHub Secrets
+          apisec-username: ${{ secrets.APISEC_USERNAME }}
+          apisec-password: ${{ secrets.APISEC_PASSWORD }}
+          # GANTI: Masukkan nama project Anda yang terdaftar di cloud.apisec.ai
+          apisec-project: "PiaSmart-TK-Tadika"
+          sarif-result-file: "apisec-results.sarif"
+
+       # 2. Upgrade ke @v4 untuk kompatibilitas Node.js 24 (Bebas dari Warning Deprecated)
+       - name: Import results to GitHub Security
+         uses: github/codeql-action/upload-sarif@v4
+         if: always() # Memastikan hasil scan tetap diunggah meskipun ada temuan celah keamanan
+         with:
+          sarif_file: ./apisec-results.sarif

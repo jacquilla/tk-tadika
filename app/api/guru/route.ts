@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     const { error } = await supabaseAdmin.from("guru").insert([sanitizedBody]);
     if (error) throw error;
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[GURU] POST error:", error);
     return NextResponse.json(
       { error: "Gagal menyimpan data guru" },

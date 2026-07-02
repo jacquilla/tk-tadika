@@ -154,7 +154,7 @@ export async function GET(request: Request) {
         "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[EXPORT] Error:", error);
     return NextResponse.json(
       { error: "Gagal membuat laporan" },

@@ -193,19 +193,47 @@ export default function LoginScreen({
         </button>
       </div>
 
-      {/* FOOTER */}
-      <div className="w-full pb-6 pt-4 flex flex-col items-center justify-center opacity-50 relative z-10">
-        <span className="text-[9px] font-black tracking-[0.2em] mb-2 uppercase">
+      {/* FOOTER & LOGO DIGI */}
+      <div className="w-full pb-6 pt-4 flex flex-col items-center justify-center opacity-70 relative z-10 group selection:bg-transparent">
+        <span className="text-[9px] font-black tracking-[0.2em] mb-2 uppercase text-slate-400 group-hover:text-emerald-500 transition-colors duration-500">
           Powered By
         </span>
-        <div className="w-16 aspect-[5/7] relative grayscale opacity-70">
-          <Image
-            src="/logo-digi.png"
-            alt="Digi Logo"
-            fill
-            sizes="64px"
-            className="object-contain"
-          />
+
+        {/* Container Utama Logo */}
+        <div className="w-16 aspect-5/7 relative overflow-hidden cursor-pointer">
+          {/* LAYER 1: Logo State Awal (Grayscale & Opacity Rendah) */}
+          <div className="absolute inset-0 grayscale opacity-40 group-hover:opacity-20 transition-all duration-700">
+            <Image
+              src="/logo-digi.png"
+              alt="Digi Logo Base"
+              fill
+              sizes="64px"
+              className="object-contain"
+            />
+          </div>
+
+          {/* LAYER 2: Efek Rambatan Warna Aquamarine dari Bawah ke Atas */}
+          {/* Menggunakan clip-path animasi naik-turun saat hover atau loop */}
+          <div
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none filter drop-shadow-[0_0_8px_rgba(20,250,210,0.5)]"
+            style={{
+              // Warna Aquamarine murni disuntikkan via tint filter CSS modern
+              // Jika logo Anda aslinya sudah berwarna aquamarine, baris sepia/hue-rotate di bawah bisa dihapus.
+              // Jika logo hitam/putih, filter ini akan memaksanya menjadi aquamarine menyala.
+              mixBlendMode: "color-burn",
+            }}
+          >
+            <Image
+              src="/logo-digi.png"
+              alt="Digi Logo Aquamarine"
+              fill
+              sizes="64px"
+              className="object-contain"
+            />
+          </div>
+
+          {/* LAYER 3: The Magical Wave Mask (Efek Kilatan Air Merambat) */}
+          <div className="absolute inset-0 bg-gradient-to-t from-emerald-400 via-aquamarine-400 to-transparent mix-blend-color-left opacity-0 group-hover:animate-shine-up pointer-events-none"></div>
         </div>
       </div>
 

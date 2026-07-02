@@ -1,26 +1,64 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+    --background: #ffffff;
+    --foreground: #171717;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+    :root {
+        --background: #0a0a0a;
+        --foreground: #ededed;
+    }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+/* --- REVISI: ANIMASI LOOPING UNTUK MOBILE --- */
+@keyframes mobileShineUp {
+    /* 0% sampai 20%: Logo berwarna sembunyi di bawah */
+    0%,
+    20% {
+        clip-path: polygon(0 100%, 100% 100%, 100% 100%, 0 100%);
+        opacity: 0;
+    }
+    /* 25%: Mulai memancar dari bawah */
+    25% {
+        opacity: 1;
+    }
+    /* 55%: Menyapu ke atas dengan gaya miring (cairan merambat) */
+    55% {
+        clip-path: polygon(0 40%, 100% 15%, 100% 100%, 0 100%);
+        opacity: 1;
+    }
+    /* 65% sampai 70%: Menutup penuh seluruh logo */
+    65%,
+    70% {
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+        opacity: 1;
+    }
+    /* 75% sampai 100%: Meredup perlahan, bersiap untuk loop berikutnya */
+    75%,
+    100% {
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+        opacity: 0;
+    }
+}
+
+@layer utilities {
+    .animate-mobile-shine-up {
+        /* infinite membuatnya looping selamanya tanpa henti */
+        animation: mobileShineUp 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
 }
